@@ -1,0 +1,4 @@
+.superpowers/
+app/.build/
+app/build.noindex/
+*.bak-*
