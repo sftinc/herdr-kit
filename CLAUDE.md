@@ -1,3 +1,7 @@
+# herdr-kit
+
+Read README.md first: it explains what this repo is, how `setup.sh` and the items work, and how to add a feature. The line below imports it, so Claude Code loads it automatically:
+
 @README.md
 
 ## Working in this repo
