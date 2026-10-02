@@ -36,23 +36,42 @@ unlink_kit() {
 }
 export -f say link unlink_kit
 
-# strip_blocks <file>: print <file> without herdr-kit blocks; fails if the markers are damaged.
+# strip_blocks <file>: print <file> without herdr-kit blocks. A line herdr itself inserted at the top of a
+# block (before its first section header) belongs to your section above it, so it is kept, outside the block.
+# Exit 1: damaged markers. Exit 2: some other line inside a block that setup didn't add.
 strip_blocks() {
-    awk '
+    awk -v kit="$KIT" '
         /^# >>> herdr-kit: .+ >>>$/ {
-            if (open != "") exit 1
+            if (open != "") { bad = 1; exit }
             open = $0; sub(/^# >>> herdr-kit: /, "", open); sub(/ >>>$/, "", open)
-            if (seen[open]++) exit 1
+            if (seen[open]++) { bad = 1; exit }
+            split("", ours); known = 0; header = 0
+            for (k = 1; k <= 2; k++) {
+                f = kit (k == 1 ? "/plugins/" : "/features/") open "/config.toml"
+                while ((getline l < f) > 0) { ours[l] = 1; known = 1 }
+                close(f)
+            }
             next
         }
         /^# <<< herdr-kit: .+ <<<$/ {
             name = $0; sub(/^# <<< herdr-kit: /, "", name); sub(/ <<<$/, "", name)
-            if (name != open) exit 1
+            if (name != open) { bad = 1; exit }
             open = ""
             next
         }
-        open == "" { print }
-        END { if (open != "") exit 1 }
+        open == "" { print; next }
+        $0 ~ /^[[:space:]]*$/ || !known || ($0 in ours) { if ($0 ~ /^\[/) header = 1; next }
+        !header {
+            print
+            print "  kept a line herdr added inside the " open " block (it is now above the block): " $0 > "/dev/stderr"
+            next
+        }
+        { if (foreign == "") foreign = "The " open " block in your herdr config has a line setup did not add: " $0; next }
+        END {
+            if (bad) exit bad
+            if (open != "") exit 1
+            if (foreign != "") { print foreign > "/dev/stderr"; exit 2 }
+        }
     ' "$1"
 }
 
@@ -108,8 +127,13 @@ mkdir -p "$(dirname "$conf")"
 tmp="$conf.herdr-kit-$$"
 trap 'rm -f "$tmp".*' EXIT
 if [[ -e "$conf" ]]; then cp "$conf" "$tmp.cur"; else : > "$tmp.cur"; fi
-if ! strip_blocks "$tmp.cur" > "$tmp.strip"; then
+strip_rc=0
+strip_blocks "$tmp.cur" > "$tmp.strip" || strip_rc=$?
+if ((strip_rc == 1)); then
     echo "The herdr-kit markers in $conf are damaged (a missing, repeated or nested '# >>> herdr-kit' line). Fix or remove them by hand. Nothing changed." >&2
+    exit 1
+elif ((strip_rc)); then
+    echo "Move that line out of the block (above its '# >>> herdr-kit' line) or delete it, then run setup again. Nothing changed." >&2
     exit 1
 fi
 trim_trailing_blank < "$tmp.strip" > "$tmp.base"

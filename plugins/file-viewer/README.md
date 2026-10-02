@@ -47,7 +47,7 @@ To move to a newer version, change `ref` in `install.sh`, run `herdr plugin unin
 
 ## Remove
 
-`./setup.sh`, then Customize and answer `n` to file-viewer. That uninstalls the plugin and removes its block.
+`./setup.sh`, then Customize and answer `n` to file-viewer. That removes its block, and uninstalls the plugin if it's the pinned version setup installs. A copy you installed yourself at another version is left alone.
 
 By hand: `herdr plugin uninstall herdr-file-viewer`, then delete the `herdr-kit: file-viewer` block from your herdr config.
 

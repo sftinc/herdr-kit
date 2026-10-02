@@ -140,6 +140,37 @@ run_setup "$t" 'c\ny\ny\ny\nn\ny\n' > /dev/null
 check "only our lines removed" '[[ "$(grep -v "^$" "$t/.zshrc")" == "export A=1" ]]'
 check "zshrc still valid" 'zsh -n "$t/.zshrc"'
 
+echo "11. A setting herdr itself put at the top of a kit block is kept"
+t=$(new_home); c=$(conf_of "$t"); mkdir -p "$(dirname "$c")"
+printf '[theme]\nauto_switch = false\n' > "$c"
+run_setup "$t" 'a\n' > /dev/null
+awk '{ print } /^# >>> herdr-kit: file-viewer >>>$/ { print "name = \"nord\"" }' "$c" > "$t/x" && cat "$t/x" > "$c"
+run_setup "$t" 'a\n' > "$t/out"; rc=$?
+check "exit 0" '[[ $rc == 0 ]]'
+check "name = nord kept once" '[[ $(grep -c "^name = \"nord\"$" "$c") == 1 ]]'
+check "kept line is outside the blocks" '[[ "$(sed -n "/^# >>> herdr-kit: file-viewer >>>$/,/^# <<< herdr-kit: file-viewer <<<$/p" "$c" | grep -c nord)" == 0 ]]'
+check "says it kept the line" 'grep -q "kept" "$t/out"'
+check "herdr accepts the config" 'herdr_ok "$c"'
+cp "$c" "$t/before"
+run_setup "$t" 'a\n' > /dev/null
+check "next run: unchanged" 'cmp -s "$c" "$t/before"'
+
+echo "12. A foreign line further inside a kit block stops setup"
+t=$(new_home); c=$(conf_of "$t")
+run_setup "$t" 'a\n' > /dev/null
+awk '{ print } /^key = "prefix\+m"$/ { print "my_own = 1" }' "$c" > "$t/x" && cat "$t/x" > "$c"; cp "$c" "$t/before"
+run_setup "$t" 'a\n' > "$t/out"; rc=$?
+check "exit 1" '[[ $rc == 1 ]]'
+check "config unchanged" 'cmp -s "$c" "$t/before"'
+check "names the line" 'grep -q "my_own = 1" "$t/out"'
+
+echo "13. 'n' leaves a file-viewer the kit didn't install"
+t=$(new_home)
+echo '{"result":{"plugins":[{"plugin_id":"herdr-file-viewer","source":{"resolved_commit":"deadbeef"}}]}}' > "$t/.stub-plugins"
+run_setup "$t" 'c\nn\ny\ny\ny\ny\n' > "$t/out"
+check "plugin still installed" '[[ -f $t/.stub-plugins ]]'
+check "says it left it" 'grep -q "left as is" "$t/out"'
+
 echo
 if ((fails)); then echo "$fails check(s) failed"; exit 1; fi
 echo "all checks passed"

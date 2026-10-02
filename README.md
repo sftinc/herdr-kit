@@ -27,7 +27,7 @@ herdr-kit: install everything? [A]ll / [c]ustomize:
     stack-pane      prefix+m stacks a pane under its left neighbour, or unstacks it [y/n]:
   ```
 
-  `y` installs or updates an item. `n` removes it if setup installed it before. Run `./setup.sh` again any time to change your mind.
+  `y` installs or updates an item. `n` removes it if setup installed it before; things you set up yourself (for example a file viewer you installed at another version) are left alone. Run `./setup.sh` again any time to change your mind.
 
 After setup, press prefix+shift+r in herdr so new keybindings are picked up. (`prefix` is Ctrl+B unless you changed it.)
 
@@ -67,7 +67,7 @@ herdr's own agent integrations (for Claude Code, Codex and others) aren't part o
 
   Lines outside these markers are never touched. Before writing, setup runs `herdr config check` on the result. If an item's lines would clash with yours (for example, you already have a `[keys]` section), that item's block is left out and setup prints the lines so you can merge them by hand. If the markers are damaged, or herdr can't read your config at all, setup stops before changing anything.
 
-  If you edit a setting inside a kit block (by hand or in herdr's Settings), the next setup run puts the kit's version back. Change it outside the block, or answer `n` for that item and add the lines yourself.
+  If you edit a kit line inside a block, the next setup run puts the kit's version back. Change it outside the block, or answer `n` for that item and add the lines yourself. herdr's Settings sometimes adds one of *your* settings just inside a kit block (it inserts before the next section header); setup moves such a line above the block and tells you. Any other unknown line inside a block makes setup stop and show it, with nothing changed.
 - **Scripts** are symlinked from this repo into place (`~/.config/herdr/scripts/`, `~/.claude/hooks/`), so `git pull` updates them.
 - **`~/.zshrc`** gets one `source` line (pane-naming). **`~/.claude/settings.json`** gets one hook entry (agent-activity).
 - **Nothing is deleted without a copy:** a file that changes or is in the way is saved as `<name>.bak-<date-time>` first.
