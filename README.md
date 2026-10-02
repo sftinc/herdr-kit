@@ -115,7 +115,7 @@ A third-party plugin works the same way under `plugins/<name>/`: `install.sh` ru
 
 Earlier versions had `./install.sh`, which replaced your herdr config with a symlink to this repo's `herdr/config.toml` (now gone). After `git pull`:
 
-1. Run `./setup.sh`. It writes a fresh config with the blocks you pick in place of that symlink, and quietly replaces any other old links into this repo.
+1. Run `./setup.sh`. It writes a fresh config with the blocks you pick in place of that symlink (also when the link points at an older or moved copy of this repo), and quietly replaces any other old links into this repo.
 2. `install.sh` saved your own config before linking it, as `~/.config/herdr/config.toml.bak-<date-time>`. Copy any of your own settings from that file into the new config, outside the `# >>> herdr-kit` blocks.
 
 ## Tests

@@ -204,6 +204,7 @@ t=$(new_home); c=$(conf_of "$t"); mkdir -p "$(dirname "$c")"
 printf '[ui.sidebar.agents]\nrow_gap = 0\n' > "$c"
 run_setup "$t" 'a\n' > "$t/out"
 check "shows herdr's parse error" 'grep -q "parse error" "$t/out"'
+check "explains whose line numbers they are" 'grep -q "draft" "$t/out"'
 
 echo "17. An item whose install fails gets no config block"
 t=$(new_home); c=$(conf_of "$t"); touch "$t/.stub-fail-install"
@@ -269,6 +270,31 @@ echo "25. A settings.json holding only whitespace still gets the hook"
 t=$(new_home); printf '\n' > "$t/.claude/settings.json"
 run_setup "$t" 'a\n' > /dev/null
 check "hook added" '[[ $(hook_count "$t") == 1 ]]'
+
+echo "26. A config linked into an old herdr-kit copy is replaced, not treated as your lines"
+t=$(new_home); c=$(conf_of "$t"); mkdir -p "$(dirname "$c")" "$t/old-kit/herdr" "$t/old-kit/features"
+touch "$t/old-kit/install.sh"
+printf '[keys]\nnext_workspace = "prefix+]"\n' > "$t/old-kit/herdr/config.toml"; cp "$t/old-kit/herdr/config.toml" "$t/old-copy"
+ln -s "$t/old-kit/herdr/config.toml" "$c"
+run_setup "$t" 'a\n' > "$t/out"; rc=$?
+check "exit 0" '[[ $rc == 0 ]]'
+check "config is now a regular file" '[[ -f $c && ! -L $c ]]'
+check "4 blocks" '[[ $(blocks "$c") == 4 ]]'
+check "old copy untouched" 'cmp -s "$t/old-kit/herdr/config.toml" "$t/old-copy"'
+check "says it replaced the old link" 'grep -q "old herdr-kit" "$t/out"'
+
+echo "27. Your own dotfiles link named herdr/config.toml stays a link"
+t=$(new_home); c=$(conf_of "$t"); mkdir -p "$(dirname "$c")" "$t/dotfiles/herdr"
+printf 'theme.name = "nord"\n' > "$t/dotfiles/herdr/config.toml"; ln -s "$t/dotfiles/herdr/config.toml" "$c"
+run_setup "$t" 'a\n' > /dev/null
+check "still a symlink" '[[ -L $c ]]'
+check "blocks in the dotfiles copy, your line kept" '[[ $(blocks "$t/dotfiles/herdr/config.toml") == 4 ]] && grep -q "^theme.name" "$t/dotfiles/herdr/config.toml"'
+
+echo "28. herdr's message is shown when setup can't read your config"
+t=$(new_home); c=$(conf_of "$t"); mkdir -p "$(dirname "$c")"
+printf '[keys]\nnext_tab = "prefix+n"\n[keys]\n' > "$c"
+run_setup "$t" 'a\n' > "$t/out"
+check "shows herdr's parse error" 'grep -q "parse error" "$t/out"'
 
 echo
 if ((fails)); then echo "$fails check(s) failed"; exit 1; fi

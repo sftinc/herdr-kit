@@ -88,6 +88,18 @@ strip_blocks() {
     ' "$1"
 }
 
+# kit_link <file>: true if <file> is a symlink into this repo, or into another herdr-kit copy's
+# herdr/config.toml (what the old install.sh made).
+kit_link() {
+    [[ -L "$1" ]] || return 1
+    local target root
+    target=$(readlink "$1")
+    [[ "$target" == "$KIT/"* ]] && return 0
+    [[ "$target" == */herdr/config.toml ]] || return 1
+    root="${target%/herdr/config.toml}"
+    [[ -d "$root/features" && ( -f "$root/install.sh" || -f "$root/setup.sh" ) ]]
+}
+
 # issues <file>: print herdr's issue lines for <file>, sorted; fails on a parse/read error or unknown output.
 issues() {
     local out
@@ -119,7 +131,15 @@ conf="${HERDR_CONFIG_PATH:-${XDG_CONFIG_HOME:-$HOME/.config}/herdr/config.toml}"
 mkdir -p "$(dirname "$conf")"
 tmp="$conf.herdr-kit-$$"
 trap 'rm -f "$tmp".*' EXIT
-if [[ -e "$conf" ]]; then cp "$conf" "$tmp.cur"; else : > "$tmp.cur"; fi
+old_link=""
+if kit_link "$conf"; then
+    old_link=$(readlink "$conf")   # the old install.sh's link: start fresh, the linked file isn't yours
+    : > "$tmp.cur"
+elif [[ -e "$conf" ]]; then
+    cp "$conf" "$tmp.cur"
+else
+    : > "$tmp.cur"
+fi
 strip_rc=0
 strip_blocks "$tmp.cur" > "$tmp.strip" || strip_rc=$?
 if ((strip_rc == 1)); then
@@ -131,7 +151,8 @@ elif ((strip_rc)); then
 fi
 mv "$tmp.strip" "$tmp.base"
 if ! issues "$tmp.base" > "$tmp.base-issues"; then
-    echo "herdr can't read $conf (run 'herdr config check' to see why). Fix it first. Nothing changed." >&2
+    echo "herdr can't read $conf. Fix it first; nothing changed. herdr says:" >&2
+    HERDR_CONFIG_PATH="$tmp.base" herdr config check 2>&1 | tail -n +2 | head -8 | sed 's/^/    /' >&2 || true
     exit 1
 fi
 if [[ -s "$tmp.base-issues" ]]; then
@@ -201,7 +222,7 @@ for i in "${!items[@]}"; do
         mv "$tmp.try" "$tmp.cand"
     else
         failed+=("${items[i]#"$KIT"/}: config lines not added")
-        say "$name: not added to $conf because herdr reports:"
+        say "$name: not added to $conf because herdr reports (line numbers are in a draft of the new config):"
         sed 's/^/      /' <<<"$new"
         say "add these lines yourself if you want them:"
         sed 's/^/      /' "$body"
@@ -211,15 +232,17 @@ if ! issues "$tmp.cand" > /dev/null; then
     echo "The new config failed herdr's check; $conf was not changed." >&2
     exit 1
 fi
-if cmp -s "$tmp.cand" "$tmp.cur"; then
+if [[ -z "$old_link" ]] && cmp -s "$tmp.cand" "$tmp.cur"; then
     say "already done: $conf"
 else
-    if [[ -e "$conf" ]]; then
+    if [[ -n "$old_link" ]]; then
+        say "replaced the link to an old herdr-kit copy ($old_link) with a regular file"
+    elif [[ -e "$conf" ]]; then
         bak="$conf.bak-$(date +%Y%m%d-%H%M%S)"
         cp "$tmp.cur" "$bak"
         say "backed up $conf -> $bak"
     fi
-    if [[ -L "$conf" && "$(readlink "$conf")" == "$KIT/"* ]]; then rm "$conf"; fi
+    if [[ -n "$old_link" ]]; then rm "$conf"; fi
     cat "$tmp.cand" > "$conf"
     say "wrote $conf"
 fi
