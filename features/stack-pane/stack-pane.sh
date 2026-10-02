@@ -5,11 +5,9 @@
 set -euo pipefail
 herdr="${HERDR_BIN_PATH:-herdr}"
 
-field() { python3 -c "import json,sys; d=json.load(sys.stdin)['result']; print($1 or '')"; }
-
-pane=${1:-$("$herdr" pane current | field "d['pane']['pane_id']")}
-tab=$("$herdr" pane get "$pane" | field "d['pane']['tab_id']")
-neighbor() { "$herdr" pane neighbor --pane "$pane" --direction "$1" 2>/dev/null | field "d['neighbor'].get('neighbor_pane_id')" || true; }
+pane=${1:-$("$herdr" pane current | jq -r '.result.pane.pane_id')}
+tab=$("$herdr" pane get "$pane" | jq -r '.result.pane.tab_id')
+neighbor() { "$herdr" pane neighbor --pane "$pane" --direction "$1" 2>/dev/null | jq -r '.result.neighbor.neighbor_pane_id // empty' || true; }
 
 if target=$(neighbor left) && [ -n "$target" ]; then split=down
 elif target=$(neighbor up) && [ -n "$target" ]; then split=right

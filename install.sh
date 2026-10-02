@@ -4,6 +4,10 @@ set -euo pipefail
 KIT="$(CDPATH= cd "$(dirname "$0")" && pwd)"
 export KIT
 
+for tool in herdr jq; do
+    command -v "$tool" >/dev/null || { echo "herdr-kit needs $tool on your PATH. Install it, then run ./install.sh again." >&2; exit 1; }
+done
+
 say() { printf '  %s\n' "$*"; }
 
 # link <repo path> <target>: make <target> a symlink to $KIT/<repo path>, backing up whatever is in the way.

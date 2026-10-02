@@ -31,7 +31,7 @@ None. Rename a pane by hand with prefix+shift+p (herdr default).
 ./install.sh pane-naming
 ```
 
-Adds the `source` line to `~/.zshrc` if it isn't there. Only shells started afterwards pick it up. Needs `jq`.
+Adds the `source` line to `~/.zshrc` if it isn't there. If you moved or re-cloned the repo, re-running it points the existing line at the new path instead of adding a second one (backing up `~/.zshrc` first). Only shells started afterwards pick it up. Needs `jq`.
 
 ## Remove
 

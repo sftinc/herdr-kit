@@ -21,7 +21,7 @@ herdr-kit/
 
 - macOS, zsh
 - [herdr](https://herdr.dev) on your `PATH`
-- `jq`, `git`, `python3`
+- `jq`, `git`
 - [Claude Code](https://claude.com/claude-code), for `last-tool`
 - Xcode, only to build the app (see [app/README.md](app/README.md))
 - Rust 1.96+, only if the file-viewer plugin can't download its prebuilt binary
@@ -42,7 +42,7 @@ cd herdr-kit
 3. Installs herdr's agent integrations for claude, codex and cursor (`herdr integration install <name>`) if they aren't current.
 4. Reloads herdr's config.
 
-Each step prints `linked`, `already done`, or `backed up <file>`. Nothing is deleted: a file that is in the way of a symlink is renamed to `<name>.bak-<date-time>`. Running it again changes nothing.
+Each step prints one indented line per thing it touches: `linked`, `backed up <file>`, `added …`, `installed: <name>`, or `already done` when there was nothing to do. Some items only report (`nothing to install`, or a `warning:` when the file viewer is at a different commit than the pinned one), and the last line says whether herdr's config was reloaded. Nothing is deleted: a file that is in the way of a symlink is renamed to `<name>.bak-<date-time>`. Running it again changes nothing.
 
 `./install.sh <name>` re-runs one plugin or feature, for example `./install.sh stack-pane`. It assumes the full install has run once, because most bindings come from `herdr/config.toml`.
 

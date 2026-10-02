@@ -16,7 +16,7 @@ herdr won't re-split a pane inside its own tab, so the script moves the pane out
 |---|---|
 | `features/stack-pane/stack-pane.sh` | `~/.config/herdr/scripts/stack-pane.sh` (symlink) |
 
-Needs `python3` (used to read herdr's JSON output).
+Needs `jq` (used to read herdr's JSON output).
 
 ## Config changes
 
