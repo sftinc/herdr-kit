@@ -19,7 +19,7 @@ herdr's default entry is the workspace name, then the agent's name. With this it
 
 | Repo | On your Mac |
 |---|---|
-| `features/agent-activity/herdr-last-tool.sh` | `~/.claude/hooks/herdr-last-tool.sh` (symlink) |
+| `features/agent-activity/herdr-last-tool.sh` | `~/.claude/hooks/herdr-last-tool.sh` (a copy) |
 
 If you set `CLAUDE_CONFIG_DIR`, that folder is used instead of `~/.claude`.
 
@@ -57,7 +57,7 @@ None.
 
 ## Remove
 
-`./setup.sh`, then Customize and answer `n` to agent-activity. That removes the sidebar block, the hook link and our hook entry, and nothing else.
+`./setup.sh`, then Customize and answer `n` to agent-activity. That removes the sidebar block, the hook copy and our hook entry, and nothing else.
 
 By hand: delete the `herdr-kit: agent-activity` block from your herdr config, our entry from `~/.claude/settings.json`, and `~/.claude/hooks/herdr-last-tool.sh`.
 

@@ -25,7 +25,7 @@ new_home() {
 # run_setup <home> <answers>: run setup.sh there with the given stdin; prints its output.
 run_setup() {
     printf '%b' "$2" | env -i HOME="$1" XDG_CONFIG_HOME="$1/.config" PATH="$1/bin:/usr/bin:/bin" \
-        REAL_HERDR="$REAL_HERDR" /bin/bash "$KIT/setup.sh" 2>&1
+        REAL_HERDR="$REAL_HERDR" /bin/bash "${RUN_KIT:-$KIT}/setup.sh" 2>&1
 }
 
 # customize <item>...: Customize answers saying "n" to the named items and "y" to the rest, in setup's order.
@@ -37,6 +37,8 @@ customize() {
     done
     printf '%s' "$out"
 }
+
+is_copy() { [[ -f "$1" && ! -L "$1" ]] && grep -q "^# Installed by herdr-kit" "$1"; }
 
 conf_of() { echo "$1/.config/herdr/config.toml"; }
 blocks()  { grep -c '^# >>> herdr-kit: ' "$1" 2>/dev/null || echo 0; }
@@ -51,8 +53,11 @@ run_setup "$t" 'a\n' > "$t/out1"; rc=$?
 check "exit 0" '[[ $rc == 0 ]]'
 check "4 blocks" '[[ $(blocks "$c") == 4 ]]'
 check "herdr accepts the config" 'herdr_ok "$c"'
-check "stack-pane linked" '[[ -L $t/.config/herdr/scripts/stack-pane.sh ]]'
-check "hook linked" '[[ -L $t/.claude/hooks/herdr-last-tool.sh ]]'
+check "stack-pane copied (a file, not a link)" 'is_copy "$t/.config/herdr/scripts/stack-pane.sh"'
+check "hook copied" 'is_copy "$t/.claude/hooks/herdr-last-tool.sh"'
+check "pane-naming copied" 'is_copy "$t/.config/herdr/scripts/pane-naming.zsh"'
+check "copies are executable where the repo's are" '[[ -x $t/.config/herdr/scripts/stack-pane.sh ]]'
+check "zshrc sources the copy, not the repo" 'grep -qx "source \"\$HOME/.config/herdr/scripts/pane-naming.zsh\"" "$t/.zshrc"'
 check "hook entry once" '[[ $(hook_count "$t") == 1 ]]'
 check "zshrc sources pane-naming once" '[[ $(grep -c pane-naming.zsh "$t/.zshrc") == 1 ]]'
 check "plugin installed" '[[ -f $t/.stub-plugins ]]'
@@ -69,9 +74,9 @@ check "2 blocks left" '[[ $(blocks "$c") == 2 ]]'
 check "agent-activity block gone" '! has_block "$c" agent-activity'
 check "stack-pane block gone" '! has_block "$c" stack-pane'
 check "keybindings block kept" 'has_block "$c" keybindings'
-check "hook link gone" '[[ ! -e $t/.claude/hooks/herdr-last-tool.sh ]]'
+check "hook copy gone" '[[ ! -e $t/.claude/hooks/herdr-last-tool.sh ]]'
 check "hook entry gone" '[[ $(hook_count "$t") == 0 ]]'
-check "stack-pane link gone" '[[ ! -e $t/.config/herdr/scripts/stack-pane.sh ]]'
+check "stack-pane copy gone" '[[ ! -e $t/.config/herdr/scripts/stack-pane.sh ]]'
 cp "$c" "$t/conf3"; b3=$(baks "$t")
 run_setup "$t" "$(customize agent-activity stack-pane)" > /dev/null
 check "same answers again: config unchanged" 'cmp -s "$c" "$t/conf3"'
@@ -221,10 +226,10 @@ check "exit 1" '[[ $rc == 1 ]]'
 check "says damaged (not 'no answer')" 'grep -q "damaged" "$t/out" && ! grep -q "No answer" "$t/out"'
 check "names line 2" 'grep -q "line 2" "$t/out"'
 
-echo "19. A leftover link into the kit is replaced without a backup"
+echo "19. A leftover link into the kit is replaced by a copy without a backup"
 t=$(new_home); mkdir -p "$t/.claude/hooks"; ln -s "$KIT/features/last-tool/herdr-last-tool.sh" "$t/.claude/hooks/herdr-last-tool.sh"
 run_setup "$t" 'a\n' > /dev/null
-check "hook link points at agent-activity" '[[ $(readlink "$t/.claude/hooks/herdr-last-tool.sh") == "$KIT/features/agent-activity/herdr-last-tool.sh" ]]'
+check "hook is now a copy" 'is_copy "$t/.claude/hooks/herdr-last-tool.sh"'
 check "no backup of the old link" '[[ $(find "$t/.claude/hooks" -name "*.bak-*" | wc -l | tr -d " ") == 0 ]]'
 
 echo "20. A config with Windows line endings"
@@ -295,6 +300,32 @@ t=$(new_home); c=$(conf_of "$t"); mkdir -p "$(dirname "$c")"
 printf '[keys]\nnext_tab = "prefix+n"\n[keys]\n' > "$c"
 run_setup "$t" 'a\n' > "$t/out"
 check "shows herdr's parse error" 'grep -q "parse error" "$t/out"'
+
+echo "29. Deleting the repo afterwards breaks nothing"
+t=$(new_home); mkdir -p "$t/kit-copy"; cp -R "$KIT/setup.sh" "$KIT/plugins" "$KIT/features" "$t/kit-copy/"
+RUN_KIT="$t/kit-copy" run_setup "$t" 'a\n' > /dev/null
+rm -rf "$t/kit-copy"
+check "hook still there" 'is_copy "$t/.claude/hooks/herdr-last-tool.sh"'
+check "stack-pane still there" 'is_copy "$t/.config/herdr/scripts/stack-pane.sh"'
+check ".zshrc loads without errors" '[[ -z "$(HOME=$t zsh -c "source $t/.zshrc" 2>&1)" ]]'
+
+echo "30. Your own file at a target is backed up, and never removed"
+t=$(new_home); mkdir -p "$t/.config/herdr/scripts"; printf 'my own\n' > "$t/.config/herdr/scripts/stack-pane.sh"
+run_setup "$t" 'a\n' > /dev/null
+check "replaced by the kit copy" 'is_copy "$t/.config/herdr/scripts/stack-pane.sh"'
+check "yours is in a backup" 'grep -q "my own" "$t"/.config/herdr/scripts/stack-pane.sh.bak-*'
+printf 'my own again\n' > "$t/.config/herdr/scripts/stack-pane.sh"
+run_setup "$t" "$(customize stack-pane)" > /dev/null
+check "'n' leaves a file without the marker" 'grep -q "my own again" "$t/.config/herdr/scripts/stack-pane.sh"'
+
+echo "31. An updated script in the repo replaces the old copy on the next run"
+t=$(new_home); mkdir -p "$t/kit-copy"; cp -R "$KIT/setup.sh" "$KIT/plugins" "$KIT/features" "$t/kit-copy/"
+RUN_KIT="$t/kit-copy" run_setup "$t" 'a\n' > /dev/null
+echo "# new line" >> "$t/kit-copy/features/stack-pane/stack-pane.sh"
+b=$(baks "$t")
+RUN_KIT="$t/kit-copy" run_setup "$t" 'a\n' > /dev/null
+check "copy updated" 'grep -q "^# new line" "$t/.config/herdr/scripts/stack-pane.sh"'
+check "no backup of our own old copy" '[[ $(baks "$t") == "$b" ]]'
 
 echo
 if ((fails)); then echo "$fails check(s) failed"; exit 1; fi

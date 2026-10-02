@@ -12,15 +12,15 @@ When zsh starts inside herdr (`$HERDR_PANE_ID` is set) and the pane has no name 
 
 | Repo | On the Mac |
 |---|---|
-| `features/pane-naming/pane-naming.zsh` | sourced from `~/.zshrc` (not copied) |
+| `features/pane-naming/pane-naming.zsh` | `~/.config/herdr/scripts/pane-naming.zsh` (a copy), sourced from `~/.zshrc` |
 
 ## Config changes
 
-`~/.zshrc` gets one line, pointing at this repo:
+`~/.zshrc` gets two lines, pointing at the copy (so deleting the repo breaks nothing):
 
 ```zsh
 # herdr-kit: name new herdr panes after their folder
-source "<path to herdr-kit>/features/pane-naming/pane-naming.zsh"
+source "$HOME/.config/herdr/scripts/pane-naming.zsh"
 ```
 
 ## Keybindings
@@ -31,13 +31,13 @@ None. Rename a pane by hand with prefix+shift+p (herdr default).
 
 `./setup.sh`, then All, or Customize and answer `y` to pane-naming.
 
-Adds the `source` line to `~/.zshrc` if it isn't there. If you moved or re-cloned the repo, it points the existing line at the new path instead of adding a second one (backing up `~/.zshrc` first). Only shells started afterwards pick it up. Needs `jq` and zsh.
+Copies the script and adds the `source` line to `~/.zshrc` if it isn't there. An older line pointing into the repo is changed to point at the copy instead of adding a second one (backing up `~/.zshrc` first). Only shells started afterwards pick it up. Needs `jq` and zsh.
 
 ## Remove
 
-`./setup.sh`, then Customize and answer `n` to pane-naming. That deletes the two lines from `~/.zshrc` (backing it up first).
+`./setup.sh`, then Customize and answer `n` to pane-naming. That deletes the two lines from `~/.zshrc` (backing it up first) and the copied script.
 
-By hand: delete the two lines above from `~/.zshrc`.
+By hand: delete the two lines above from `~/.zshrc`, and `~/.config/herdr/scripts/pane-naming.zsh`.
 
 ## Check it works
 

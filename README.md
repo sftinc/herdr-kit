@@ -70,7 +70,7 @@ herdr's own agent integrations (for Claude Code, Codex and others) aren't part o
   If the markers are damaged, or herdr can't read your config at all, setup says which line and stops before asking anything. `herdr config reset-keys` is a common cause of damaged markers: it removes comment lines, including the kit's end markers, from `[keys]` sections. The simplest fix is to restore the backup reset-keys made (it prints "Created backup: …"). Or delete everything from the first leftover `# >>> herdr-kit` line to the last `# <<< herdr-kit` line, then run setup again.
 
   If you edit a kit line inside a block, the next setup run puts the kit's version back. Change it outside the block, or answer `n` for that item and add the lines yourself. herdr's Settings sometimes adds one of *your* settings just inside a kit block (it inserts before the next section header); setup moves such a line above the block and tells you. Any other unknown line inside a block makes setup stop and show it, with nothing changed.
-- **Scripts** are symlinked from this repo into place (`~/.config/herdr/scripts/`, `~/.claude/hooks/`), so `git pull` updates them.
+- **Scripts** are copied into place (`~/.config/herdr/scripts/`, `~/.claude/hooks/`), so everything keeps working if you delete or move this repo. Each copy has an `# Installed by herdr-kit` line; setup only ever replaces or removes files with that line. After a `git pull`, run `./setup.sh` again to pick up changes.
 - **`~/.zshrc`** gets one `source` line (pane-naming). **`~/.claude/settings.json`** gets one hook entry (agent-activity).
 - **Nothing is deleted without a copy:** a file that changes or is in the way is saved as `<name>.bak-<date-time>` first.
 
@@ -91,20 +91,20 @@ Every folder in `plugins/` and `features/` has the same files:
 
 1. Make `features/<name>/` and put the feature's files in it.
 2. Write `install.sh`. Line 2 is the description. Setup runs it with these ready to use:
-   - `link <repo path> <target>` symlinks a repo file into place, backing up whatever is in the way.
+   - `copy_in <repo path> <target>` copies a repo file into place, backing up anything in the way that setup didn't put there.
    - `say <message>` prints one indented status line.
    - `$KIT` is the repo's absolute path.
 
    ```bash
    #!/bin/bash
    # What this feature does, in one line
-   # Links my-script.sh to where config.toml expects it.
+   # Copies my-script.sh to where config.toml expects it.
    set -euo pipefail
-   link features/<name>/my-script.sh "$HOME/.config/herdr/scripts/my-script.sh"
+   copy_in features/<name>/my-script.sh "$HOME/.config/herdr/scripts/my-script.sh"
    ```
 
    Check before adding anything, so a second run changes nothing (see `features/agent-activity/install.sh` for editing a JSON file, `features/pane-naming/install.sh` for adding a line to a file).
-3. Write `remove.sh` to undo it. `unlink_kit <target>` removes a symlink only if it points into this repo.
+3. Give every file you copy an `# Installed by herdr-kit: edit it in the repo and run ./setup.sh again.` line, so setup can recognise its own copies. Then write `remove.sh` to undo the install: `remove_copy <target>` removes a file only if it has that line.
 4. If it needs herdr settings, put them in `config.toml`. Point at scripts with `$HOME/...`, never a full `/Users/...` path, since this repo is public.
 5. Add any keys to `KEYBINDINGS.md`, and write `README.md` with the headings above.
 6. Run `./tests/test-setup.sh`, then `./setup.sh` twice: the second run should report `already done`.
@@ -115,7 +115,7 @@ A third-party plugin works the same way under `plugins/<name>/`: `install.sh` ru
 
 Earlier versions had `./install.sh`, which replaced your herdr config with a symlink to this repo's `herdr/config.toml` (now gone). After `git pull`:
 
-1. Run `./setup.sh`. It writes a fresh config with the blocks you pick in place of that symlink (also when the link points at an older or moved copy of this repo), and quietly replaces any other old links into this repo.
+1. Run `./setup.sh`. It writes a fresh config with the blocks you pick in place of that symlink (also when the link points at an older or moved copy of this repo), and replaces the old script links with copies.
 2. `install.sh` saved your own config before linking it, as `~/.config/herdr/config.toml.bak-<date-time>`. Copy any of your own settings from that file into the new config, outside the `# >>> herdr-kit` blocks.
 
 ## Tests
@@ -124,7 +124,7 @@ Earlier versions had `./install.sh`, which replaced your herdr config with a sym
 ./tests/test-setup.sh
 ```
 
-Runs setup in throwaway home folders with a stand-in for herdr (only `herdr config check` uses the real one), so it never touches your live setup. It covers All, Customize with removals, re-runs, a config that clashes, a symlinked config, damaged markers, a broken config, no Claude Code, and closing setup at the first question.
+Runs setup in throwaway home folders with a stand-in for herdr (only `herdr config check` uses the real one), so it never touches your live setup. It covers All, Customize with removals, re-runs, a config that clashes, a symlinked config, deleting the repo afterwards, your own file at a target, damaged markers, a broken config, no Claude Code, and closing setup at the first question.
 
 ## Not in this repo
 

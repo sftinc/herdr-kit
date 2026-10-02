@@ -1,4 +1,5 @@
 #!/bin/bash
+# Installed by herdr-kit: edit it in the repo and run ./setup.sh again.
 # Toggle the focused pane between side-by-side and stacked.
 # Has a pane to its left -> move it underneath that pane.
 # Has a pane above it    -> move it back out to the right of that pane.

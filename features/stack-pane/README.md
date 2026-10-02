@@ -16,7 +16,7 @@ herdr won't re-split a pane inside its own tab, so the script moves the pane out
 
 | Repo | On the Mac |
 |---|---|
-| `features/stack-pane/stack-pane.sh` | `~/.config/herdr/scripts/stack-pane.sh` (symlink) |
+| `features/stack-pane/stack-pane.sh` | `~/.config/herdr/scripts/stack-pane.sh` (a copy) |
 
 Needs `jq` (used to read herdr's JSON output).
 
@@ -46,7 +46,7 @@ herdr runs `shell` commands through `$SHELL -lc`, so `$HOME` expands. The script
 
 ## Remove
 
-`./setup.sh`, then Customize and answer `n` to stack-pane. That removes the link and the block.
+`./setup.sh`, then Customize and answer `n` to stack-pane. That removes the copy and the block.
 
 By hand: delete the `herdr-kit: stack-pane` block from your herdr config and `~/.config/herdr/scripts/stack-pane.sh`.
 

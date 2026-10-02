@@ -1,4 +1,5 @@
 #!/bin/sh
+# Installed by herdr-kit: edit it in the repo and run ./setup.sh again.
 # Report Claude Code's current tool call to herdr as the $last_tool sidebar token.
 [ -n "${HERDR_PANE_ID:-}" ] || { cat >/dev/null; exit 0; }
 

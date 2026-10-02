@@ -10,34 +10,38 @@ done
 
 say() { printf '  %s\n' "$*"; }
 
-# link <repo path> <target>: make <target> a symlink to $KIT/<repo path>, backing up whatever is in the way
-# (an old link into this repo is just replaced).
-link() {
+# copy_in <repo path> <target>: copy a repo file into place, so it keeps working if the repo is deleted.
+# A copy setup made before (it has the "# Installed by herdr-kit" line) or an old link into this repo is
+# simply replaced; anything else in the way is backed up first.
+copy_in() {
     local src="$KIT/$1" dst="$2"
-    if [[ -L "$dst" && "$(readlink "$dst")" == "$src" ]]; then
+    if [[ -f "$dst" && ! -L "$dst" ]] && cmp -s "$src" "$dst"; then
         say "already done: $dst"
         return
     fi
     mkdir -p "$(dirname "$dst")"
-    if [[ -L "$dst" && "$(readlink "$dst")" == "$KIT/"* ]]; then
+    if [[ -L "$dst" && "$(readlink "$dst")" == "$KIT/"* ]] || kit_copy "$dst"; then
         rm "$dst"
     elif [[ -e "$dst" || -L "$dst" ]]; then
         local bak="$dst.bak-$(date +%Y%m%d-%H%M%S)"
         mv "$dst" "$bak"
         say "backed up $dst -> $bak"
     fi
-    ln -s "$src" "$dst"
-    say "linked $dst"
+    cp "$src" "$dst"
+    say "copied $dst"
 }
 
-# unlink_kit <target>: remove <target> if it is a symlink into this repo.
-unlink_kit() {
-    if [[ -L "$1" && "$(readlink "$1")" == "$KIT/"* ]]; then
+# kit_copy <file>: true if <file> is a regular file that setup copied (it has the marker line).
+kit_copy() { [[ -f "$1" && ! -L "$1" ]] && grep -q '^# Installed by herdr-kit' "$1"; }
+
+# remove_copy <target>: remove <target> if setup put it there (a marked copy, or an old link into this repo).
+remove_copy() {
+    if [[ -L "$1" && "$(readlink "$1")" == "$KIT/"* ]] || kit_copy "$1"; then
         rm "$1"
         say "removed $1"
     fi
 }
-export -f say link unlink_kit
+export -f say copy_in kit_copy remove_copy
 
 # strip_blocks <file>: print <file> without herdr-kit blocks (and the one blank line setup puts before each).
 # A line herdr itself inserted at the top of a block (before the block's first section header) belongs to

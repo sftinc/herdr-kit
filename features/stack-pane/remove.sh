@@ -1,4 +1,4 @@
 #!/bin/bash
-# Removes the stack-pane.sh link if it points into this repo.
+# Removes the stack-pane.sh copy setup put there.
 set -euo pipefail
-unlink_kit "$HOME/.config/herdr/scripts/stack-pane.sh"
+remove_copy "$HOME/.config/herdr/scripts/stack-pane.sh"

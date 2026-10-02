@@ -1,6 +1,6 @@
 #!/bin/bash
 # Agents sidebar shows each agent's task and the tool it's running (Claude Code)
-# Links the hook script and registers it as a PreToolUse hook in Claude Code's settings.json.
+# Copies the hook script and registers it as a PreToolUse hook in Claude Code's settings.json.
 set -euo pipefail
 claude="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 if [[ ! -d "$claude" ]]; then
@@ -9,7 +9,7 @@ if [[ ! -d "$claude" ]]; then
 fi
 if [[ "$claude" == "$HOME/.claude" ]]; then cmd='bash ~/.claude/hooks/herdr-last-tool.sh'; else cmd="bash \"$claude/hooks/herdr-last-tool.sh\""; fi
 
-link features/agent-activity/herdr-last-tool.sh "$claude/hooks/herdr-last-tool.sh"
+copy_in features/agent-activity/herdr-last-tool.sh "$claude/hooks/herdr-last-tool.sh"
 
 settings="$claude/settings.json"
 created=0
