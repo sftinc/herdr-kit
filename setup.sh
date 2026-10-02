@@ -10,7 +10,8 @@ done
 
 say() { printf '  %s\n' "$*"; }
 
-# link <repo path> <target>: make <target> a symlink to $KIT/<repo path>, backing up whatever is in the way.
+# link <repo path> <target>: make <target> a symlink to $KIT/<repo path>, backing up whatever is in the way
+# (an old link into this repo is just replaced).
 link() {
     local src="$KIT/$1" dst="$2"
     if [[ -L "$dst" && "$(readlink "$dst")" == "$src" ]]; then
@@ -18,7 +19,9 @@ link() {
         return
     fi
     mkdir -p "$(dirname "$dst")"
-    if [[ -e "$dst" || -L "$dst" ]]; then
+    if [[ -L "$dst" && "$(readlink "$dst")" == "$KIT/"* ]]; then
+        rm "$dst"
+    elif [[ -e "$dst" || -L "$dst" ]]; then
         local bak="$dst.bak-$(date +%Y%m%d-%H%M%S)"
         mv "$dst" "$bak"
         say "backed up $dst -> $bak"
@@ -36,15 +39,21 @@ unlink_kit() {
 }
 export -f say link unlink_kit
 
-# strip_blocks <file>: print <file> without herdr-kit blocks. A line herdr itself inserted at the top of a
-# block (before its first section header) belongs to your section above it, so it is kept, outside the block.
+# strip_blocks <file>: print <file> without herdr-kit blocks (and the one blank line setup puts before each).
+# A line herdr itself inserted at the top of a block (before the block's first section header) belongs to
+# your section above it, so it is kept, outside the block. Windows line endings are fine.
 # Exit 1: damaged markers. Exit 2: some other line inside a block that setup didn't add.
 strip_blocks() {
     awk -v kit="$KIT" '
-        /^# >>> herdr-kit: .+ >>>$/ {
-            if (open != "") { bad = 1; exit }
-            open = $0; sub(/^# >>> herdr-kit: /, "", open); sub(/ >>>$/, "", open)
-            if (seen[open]++) { bad = 1; exit }
+        function damaged(why) { if (!bad) printf "line %d: %s\n", NR, why > "/dev/stderr"; bad = 1; exit }
+        function flush(skiplast,   i) { for (i = 1; i <= nh - skiplast; i++) print held[i]; nh = 0 }
+        { line = $0; sub(/\r$/, "", line) }
+        line ~ /^# >>> herdr-kit: .+ >>>$/ {
+            name = line; sub(/^# >>> herdr-kit: /, "", name); sub(/ >>>$/, "", name)
+            if (open != "") damaged("the " name " block starts before the " open " block has ended")
+            if (seen[name]++) damaged("a second " name " block")
+            open = name; opened = NR
+            flush(1)
             split("", ours); known = 0; header = 0
             for (k = 1; k <= 2; k++) {
                 f = kit (k == 1 ? "/plugins/" : "/features/") open "/config.toml"
@@ -53,30 +62,30 @@ strip_blocks() {
             }
             next
         }
-        /^# <<< herdr-kit: .+ <<<$/ {
-            name = $0; sub(/^# <<< herdr-kit: /, "", name); sub(/ <<<$/, "", name)
-            if (name != open) { bad = 1; exit }
+        line ~ /^# <<< herdr-kit: .+ <<<$/ {
+            name = line; sub(/^# <<< herdr-kit: /, "", name); sub(/ <<<$/, "", name)
+            if (open == "") damaged("an end marker for " name " with no start marker")
+            if (name != open) damaged("an end marker for " name " inside the " open " block")
             open = ""
             next
         }
-        open == "" { print; next }
-        $0 ~ /^[[:space:]]*$/ || !known || ($0 in ours) { if ($0 ~ /^\[/) header = 1; next }
+        open == "" && line ~ /^[[:space:]]*$/ { held[++nh] = $0; next }
+        open == "" { flush(0); print; next }
+        line ~ /^[[:space:]]*$/ || !known || (line in ours) { if (line ~ /^\[/) header = 1; next }
         !header {
             print
-            print "  kept a line herdr added inside the " open " block (it is now above the block): " $0 > "/dev/stderr"
+            kept = kept "  kept a line herdr added inside the " open " block (it is now above the block): " line "\n"
             next
         }
-        { if (foreign == "") foreign = "The " open " block in your herdr config has a line setup did not add: " $0; next }
+        { if (foreign == "") foreign = "line " NR ": the " open " block has a line setup did not add: " line; next }
         END {
-            if (bad) exit bad
-            if (open != "") exit 1
+            if (bad) exit 1
+            if (open != "") { printf "line %d: the %s block has no end marker\n", opened, open > "/dev/stderr"; exit 1 }
+            flush(0)
             if (foreign != "") { print foreign > "/dev/stderr"; exit 2 }
+            printf "%s", kept > "/dev/stderr"
         }
     ' "$1"
-}
-
-trim_trailing_blank() {
-    awk '{ line[NR] = $0 } END { n = NR; while (n > 0 && line[n] ~ /^[[:space:]]*$/) n--; for (i = 1; i <= n; i++) print line[i] }'
 }
 
 # issues <file>: print herdr's issue lines for <file>, sorted; fails on a parse/read error or unknown output.
@@ -105,12 +114,37 @@ for dir in "$KIT"/plugins/*/ "$KIT"/features/*/; do
     [[ -f "$dir/install.sh" ]] && items+=("${dir%/}")
 done
 
-# 1. Questions first, so stopping here changes nothing.
+# 1. Check the herdr config first: a problem here stops setup before any question or change.
+conf="${HERDR_CONFIG_PATH:-${XDG_CONFIG_HOME:-$HOME/.config}/herdr/config.toml}"
+mkdir -p "$(dirname "$conf")"
+tmp="$conf.herdr-kit-$$"
+trap 'rm -f "$tmp".*' EXIT
+if [[ -e "$conf" ]]; then cp "$conf" "$tmp.cur"; else : > "$tmp.cur"; fi
+strip_rc=0
+strip_blocks "$tmp.cur" > "$tmp.strip" || strip_rc=$?
+if ((strip_rc == 1)); then
+    echo "The herdr-kit markers in $conf are damaged (see the line above). Fix or remove them by hand; 'herdr config reset-keys' is a common cause. Nothing changed." >&2
+    exit 1
+elif ((strip_rc)); then
+    echo "Move that line out of the block (above its '# >>> herdr-kit' line) or delete it, then run setup again. Nothing changed." >&2
+    exit 1
+fi
+mv "$tmp.strip" "$tmp.base"
+if ! issues "$tmp.base" > "$tmp.base-issues"; then
+    echo "herdr can't read $conf (run 'herdr config check' to see why). Fix it first. Nothing changed." >&2
+    exit 1
+fi
+if [[ -s "$tmp.base-issues" ]]; then
+    echo "Note: herdr reports issues in your own config lines; continuing:"
+    sed 's/^/    /' "$tmp.base-issues"
+fi
+
+# 2. Questions, before anything changes.
 while :; do
     mode=$(ask "herdr-kit: install everything? [A]ll / [c]ustomize: ")
     case "$mode" in ""|a|A) mode=all; break ;; c|C) mode=custom; break ;; esac
 done
-want=()
+want=(); keep=()
 for i in "${!items[@]}"; do
     if [[ $mode == all ]]; then want[i]=1; continue; fi
     name=$(basename "${items[i]}")
@@ -121,38 +155,13 @@ for i in "${!items[@]}"; do
     done
 done
 
-# 2. Check the herdr config before changing anything.
-conf="${HERDR_CONFIG_PATH:-${XDG_CONFIG_HOME:-$HOME/.config}/herdr/config.toml}"
-mkdir -p "$(dirname "$conf")"
-tmp="$conf.herdr-kit-$$"
-trap 'rm -f "$tmp".*' EXIT
-if [[ -e "$conf" ]]; then cp "$conf" "$tmp.cur"; else : > "$tmp.cur"; fi
-strip_rc=0
-strip_blocks "$tmp.cur" > "$tmp.strip" || strip_rc=$?
-if ((strip_rc == 1)); then
-    echo "The herdr-kit markers in $conf are damaged (a missing, repeated or nested '# >>> herdr-kit' line). Fix or remove them by hand. Nothing changed." >&2
-    exit 1
-elif ((strip_rc)); then
-    echo "Move that line out of the block (above its '# >>> herdr-kit' line) or delete it, then run setup again. Nothing changed." >&2
-    exit 1
-fi
-trim_trailing_blank < "$tmp.strip" > "$tmp.base"
-if ! issues "$tmp.base" > "$tmp.base-issues"; then
-    echo "herdr can't read $conf (run 'herdr config check' to see why). Fix it first. Nothing changed." >&2
-    exit 1
-fi
-if [[ -s "$tmp.base-issues" ]]; then
-    echo "Note: herdr reports issues in your own config lines; continuing:"
-    sed 's/^/    /' "$tmp.base-issues"
-fi
-
 # 3. Install what was chosen, remove the rest.
 failed=()
 for i in "${!items[@]}"; do
     rel="${items[i]#"$KIT"/}"
     if [[ ${want[i]} == 1 ]]; then
         echo "$rel"
-        bash "${items[i]}/install.sh" || failed+=("$rel: install.sh failed")
+        bash "${items[i]}/install.sh" || { failed+=("$rel: install.sh failed; its config lines were left as they were"); want[i]=0; keep[i]=1; }
     else
         echo "$rel (not chosen: removing)"
         bash "${items[i]}/remove.sh" || failed+=("$rel: remove.sh failed")
@@ -163,19 +172,30 @@ done
 echo "herdr config"
 cp "$tmp.base" "$tmp.cand"
 for i in "${!items[@]}"; do
-    [[ ${want[i]} == 1 && -f "${items[i]}/config.toml" ]] || continue
     name=$(basename "${items[i]}")
+    if [[ ${want[i]} == 1 ]]; then
+        body="${items[i]}/config.toml"
+        [[ -f "$body" ]] || continue
+    elif [[ ${keep[i]:-0} == 1 ]]; then
+        # Its install failed: keep the block it already had, if any.
+        awk -v n="$name" '{ l = $0; sub(/\r$/, "", l) } l == "# <<< herdr-kit: " n " <<<" { f = 0 } f { print } l == "# >>> herdr-kit: " n " >>>" { f = 1 }' "$tmp.cur" > "$tmp.old"
+        [[ -s "$tmp.old" ]] || continue
+        body="$tmp.old"
+    else
+        continue
+    fi
     cp "$tmp.cand" "$tmp.try"
     {
         if [[ -s "$tmp.try" ]]; then echo; fi
         echo "# >>> herdr-kit: $name >>>"
-        cat "${items[i]}/config.toml"
+        cat "$body"
         echo "# <<< herdr-kit: $name <<<"
     } >> "$tmp.try"
     if issues "$tmp.try" > "$tmp.try-issues"; then
         new=$(LC_ALL=C comm -13 "$tmp.base-issues" "$tmp.try-issues")
     else
-        new="herdr could not read the config with these lines added"
+        new=$(HERDR_CONFIG_PATH="$tmp.try" herdr config check 2>&1 | tail -n +2 | head -8 || true)
+        [[ -n "$new" ]] || new="herdr could not check the config with these lines added"
     fi
     if [[ -z "$new" ]]; then
         mv "$tmp.try" "$tmp.cand"
@@ -184,7 +204,7 @@ for i in "${!items[@]}"; do
         say "$name: not added to $conf because herdr reports:"
         sed 's/^/      /' <<<"$new"
         say "add these lines yourself if you want them:"
-        sed 's/^/      /' "${items[i]}/config.toml"
+        sed 's/^/      /' "$body"
     fi
 done
 if ! issues "$tmp.cand" > /dev/null; then

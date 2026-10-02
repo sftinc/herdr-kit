@@ -16,6 +16,7 @@ elif [[ -n "$old" ]]; then
     rm "$HOME/.zshrc.tmp"
     say "updated ~/.zshrc source line to $KIT"
 else
-    printf '\n# herdr-kit: name new herdr panes after their folder\n%s\n' "$line" >> "$HOME/.zshrc"
+    [[ -s "$HOME/.zshrc" && -n "$(tail -c 1 "$HOME/.zshrc")" ]] && echo >> "$HOME/.zshrc"   # end the last line first
+    printf '# herdr-kit: name new herdr panes after their folder\n%s\n' "$line" >> "$HOME/.zshrc"
     say "added source line to ~/.zshrc"
 fi

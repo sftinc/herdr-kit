@@ -6,6 +6,7 @@ case "$1 $2" in
     "plugin list")
         if [[ -f "$HOME/.stub-plugins" ]]; then cat "$HOME/.stub-plugins"; else echo '{"result":{"plugins":[]}}'; fi ;;
     "plugin install")
+        [[ -f "$HOME/.stub-fail-install" ]] && { echo "network error" >&2; exit 1; }
         echo '{"result":{"plugins":[{"plugin_id":"herdr-file-viewer","source":{"resolved_commit":"c237626260478d5f2d788149fc741ddf3c3588ba"}}]}}' > "$HOME/.stub-plugins" ;;
     "plugin uninstall") rm -f "$HOME/.stub-plugins" ;;
     *) exit 1 ;;

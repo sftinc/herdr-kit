@@ -28,6 +28,16 @@ run_setup() {
         REAL_HERDR="$REAL_HERDR" /bin/bash "$KIT/setup.sh" 2>&1
 }
 
+# customize <item>...: Customize answers saying "n" to the named items and "y" to the rest, in setup's order.
+customize() {
+    local no=" $* " out='c\n' d
+    for d in "$KIT"/plugins/*/ "$KIT"/features/*/; do
+        [[ -f "$d/install.sh" ]] || continue
+        if [[ "$no" == *" $(basename "$d") "* ]]; then out+='n\n'; else out+='y\n'; fi
+    done
+    printf '%s' "$out"
+}
+
 conf_of() { echo "$1/.config/herdr/config.toml"; }
 blocks()  { grep -c '^# >>> herdr-kit: ' "$1" 2>/dev/null || echo 0; }
 has_block() { grep -qx "# >>> herdr-kit: $2 >>>" "$1"; }
@@ -52,8 +62,8 @@ check "second All: exit 0" '[[ $rc == 0 ]]'
 check "second All: config unchanged" 'cmp -s "$c" "$t/conf1"'
 check "second All: no new backups" '[[ $(baks "$t") == "$b1" ]]'
 
-echo "2. Customize: say no to agent-activity and stack-pane (order: file-viewer, agent-activity, keybindings, pane-naming, stack-pane)"
-run_setup "$t" 'c\ny\nn\ny\ny\nn\n' > "$t/out3"; rc=$?
+echo "2. Customize: say no to agent-activity and stack-pane"
+run_setup "$t" "$(customize agent-activity stack-pane)" > "$t/out3"; rc=$?
 check "exit 0" '[[ $rc == 0 ]]'
 check "2 blocks left" '[[ $(blocks "$c") == 2 ]]'
 check "agent-activity block gone" '! has_block "$c" agent-activity'
@@ -63,7 +73,7 @@ check "hook link gone" '[[ ! -e $t/.claude/hooks/herdr-last-tool.sh ]]'
 check "hook entry gone" '[[ $(hook_count "$t") == 0 ]]'
 check "stack-pane link gone" '[[ ! -e $t/.config/herdr/scripts/stack-pane.sh ]]'
 cp "$c" "$t/conf3"; b3=$(baks "$t")
-run_setup "$t" 'c\ny\nn\ny\ny\nn\n' > /dev/null
+run_setup "$t" "$(customize agent-activity stack-pane)" > /dev/null
 check "same answers again: config unchanged" 'cmp -s "$c" "$t/conf3"'
 check "same answers again: no new backups" '[[ $(baks "$t") == "$b3" ]]'
 run_setup "$t" 'a\n' > /dev/null
@@ -125,18 +135,18 @@ echo "8. No answer (stdin closed)"
 t=$(new_home); c=$(conf_of "$t")
 run_setup "$t" '' > "$t/out"; rc=$?
 check "exit 1" '[[ $rc == 1 ]]'
-check "nothing changed" '[[ ! -e $c && ! -e $t/.zshrc && ! -e $t/.stub-log ]]'
+check "nothing changed" '[[ ! -e $c && ! -e $t/.zshrc ]] && ! grep -q "^plugin" "$t/.stub-log"'
 
 echo "9. Remove keeps a friend's hook in the same matcher"
 t=$(new_home); c=$(conf_of "$t")
 printf '{"hooks":{"PreToolUse":[{"matcher":"*","hooks":[{"type":"command","command":"guard"},{"type":"command","command":"%s"}]}]}}' "$HOOK" > "$t/.claude/settings.json"
-run_setup "$t" 'c\ny\nn\ny\ny\ny\n' > /dev/null
+run_setup "$t" "$(customize agent-activity)" > /dev/null
 check "friend's command kept" '[[ $(jq -c "[.hooks.PreToolUse[].hooks[].command]" "$t/.claude/settings.json") == "[\"guard\"]" ]]'
 
 echo "10. pane-naming remove leaves the rest of .zshrc"
 t=$(new_home)
 printf 'export A=1\n\n# herdr-kit: name new herdr panes after their folder\nsource "/old/herdr-kit/features/pane-naming/pane-naming.zsh"' > "$t/.zshrc"
-run_setup "$t" 'c\ny\ny\ny\nn\ny\n' > /dev/null
+run_setup "$t" "$(customize pane-naming)" > /dev/null
 check "only our lines removed" '[[ "$(grep -v "^$" "$t/.zshrc")" == "export A=1" ]]'
 check "zshrc still valid" 'zsh -n "$t/.zshrc"'
 
@@ -167,9 +177,98 @@ check "names the line" 'grep -q "my_own = 1" "$t/out"'
 echo "13. 'n' leaves a file-viewer the kit didn't install"
 t=$(new_home)
 echo '{"result":{"plugins":[{"plugin_id":"herdr-file-viewer","source":{"resolved_commit":"deadbeef"}}]}}' > "$t/.stub-plugins"
-run_setup "$t" 'c\nn\ny\ny\ny\ny\n' > "$t/out"
+run_setup "$t" "$(customize file-viewer)" > "$t/out"
 check "plugin still installed" '[[ -f $t/.stub-plugins ]]'
 check "says it left it" 'grep -q "left as is" "$t/out"'
+
+echo "14. Your lines stay byte-for-byte (trailing blank lines too)"
+t=$(new_home); c=$(conf_of "$t"); mkdir -p "$(dirname "$c")"
+printf 'theme.name = "nord"\n\n\n' > "$c"; cp "$c" "$t/orig"
+run_setup "$t" "$(customize file-viewer agent-activity keybindings pane-naming stack-pane)" > /dev/null
+check "all n on a kit-free config: untouched" 'cmp -s "$c" "$t/orig"'
+check "all n: no backup made" '[[ $(baks "$t") == 0 ]]'
+run_setup "$t" 'a\n' > /dev/null
+run_setup "$t" "$(customize file-viewer agent-activity keybindings pane-naming stack-pane)" > /dev/null
+check "All then all n: back to the original bytes" 'cmp -s "$c" "$t/orig"'
+
+echo "15. pane-naming y/n cycles leave .zshrc as it was"
+t=$(new_home); printf 'export A=1\n' > "$t/.zshrc"; cp "$t/.zshrc" "$t/orig"
+for i in 1 2; do run_setup "$t" 'a\n' > /dev/null; run_setup "$t" "$(customize pane-naming)" > /dev/null; done
+check ".zshrc identical after two cycles" 'cmp -s "$t/.zshrc" "$t/orig"'
+t=$(new_home); printf 'export A=1' > "$t/.zshrc"
+run_setup "$t" 'a\n' > /dev/null
+check "no-final-newline .zshrc: our line is on its own line" '[[ $(grep -c "^source " "$t/.zshrc") == 1 && $(grep -c "^export A=1$" "$t/.zshrc") == 1 ]]'
+
+echo "16. A clash that breaks parsing shows herdr's own message"
+t=$(new_home); c=$(conf_of "$t"); mkdir -p "$(dirname "$c")"
+printf '[ui.sidebar.agents]\nrow_gap = 0\n' > "$c"
+run_setup "$t" 'a\n' > "$t/out"
+check "shows herdr's parse error" 'grep -q "parse error" "$t/out"'
+
+echo "17. An item whose install fails gets no config block"
+t=$(new_home); c=$(conf_of "$t"); touch "$t/.stub-fail-install"
+run_setup "$t" 'a\n' > "$t/out"; rc=$?
+check "exit 1" '[[ $rc == 1 ]]'
+check "no file-viewer block" '! has_block "$c" file-viewer'
+check "other blocks added" 'has_block "$c" stack-pane'
+
+echo "18. Damaged markers are reported before the questions, with the line"
+t=$(new_home); c=$(conf_of "$t"); mkdir -p "$(dirname "$c")"
+printf 'a = 1\n# <<< herdr-kit: keybindings <<<\n' > "$c"
+run_setup "$t" '' > "$t/out"; rc=$?
+check "exit 1" '[[ $rc == 1 ]]'
+check "says damaged (not 'no answer')" 'grep -q "damaged" "$t/out" && ! grep -q "No answer" "$t/out"'
+check "names line 2" 'grep -q "line 2" "$t/out"'
+
+echo "19. A leftover link into the kit is replaced without a backup"
+t=$(new_home); mkdir -p "$t/.claude/hooks"; ln -s "$KIT/features/last-tool/herdr-last-tool.sh" "$t/.claude/hooks/herdr-last-tool.sh"
+run_setup "$t" 'a\n' > /dev/null
+check "hook link points at agent-activity" '[[ $(readlink "$t/.claude/hooks/herdr-last-tool.sh") == "$KIT/features/agent-activity/herdr-last-tool.sh" ]]'
+check "no backup of the old link" '[[ $(find "$t/.claude/hooks" -name "*.bak-*" | wc -l | tr -d " ") == 0 ]]'
+
+echo "20. A config with Windows line endings"
+t=$(new_home); c=$(conf_of "$t")
+run_setup "$t" 'a\n' > /dev/null
+perl -pi -e 's/\n/\r\n/' "$c"
+run_setup "$t" "$(customize file-viewer agent-activity keybindings pane-naming stack-pane)" > /dev/null; rc=$?
+check "exit 0" '[[ $rc == 0 ]]'
+check "all blocks removed" '[[ $(grep -c "herdr-kit" "$c") == 0 ]]'
+
+echo "21. An empty settings.json gets no pointless backup"
+t=$(new_home); : > "$t/.claude/settings.json"
+run_setup "$t" 'a\n' > /dev/null
+check "no settings.json backup" '[[ $(find "$t/.claude" -name "settings.json.bak-*" | wc -l | tr -d " ") == 0 ]]'
+check "hook added" '[[ $(hook_count "$t") == 1 ]]'
+
+echo "22. A failed install keeps the item's existing block"
+t=$(new_home); c=$(conf_of "$t")
+run_setup "$t" 'a\n' > /dev/null
+printf '{"a":1,}' > "$t/.claude/settings.json"
+run_setup "$t" 'a\n' > "$t/out"; rc=$?
+check "exit 1" '[[ $rc == 1 ]]'
+check "agent-activity block still there" 'has_block "$c" agent-activity'
+check "message says left as it was" 'grep -q "left as they were" "$t/out"'
+
+echo "23. Blank lines that aren't empty survive, and a second run changes nothing"
+t=$(new_home); c=$(conf_of "$t"); mkdir -p "$(dirname "$c")"
+printf 'a = 1\r\n\r\n   \n' > "$c"; cp "$c" "$t/orig"
+run_setup "$t" 'a\n' > /dev/null; cp "$c" "$t/after1"; b1=$(baks "$t")
+run_setup "$t" 'a\n' > /dev/null
+check "second All: unchanged" 'cmp -s "$c" "$t/after1" && [[ $(baks "$t") == "$b1" ]]'
+run_setup "$t" "$(customize file-viewer agent-activity keybindings pane-naming stack-pane)" > /dev/null
+check "all n: original bytes" 'cmp -s "$c" "$t/orig"'
+
+echo "24. No 'kept' claims when setup stops"
+t=$(new_home); c=$(conf_of "$t"); mkdir -p "$(dirname "$c")"
+printf 'a = 1\n# >>> herdr-kit: file-viewer >>>\n[ui.sidebar.agents]\nrow_gap = 1\n' > "$c"
+run_setup "$t" 'a\n' > "$t/out"; rc=$?
+check "exit 1, damaged" '[[ $rc == 1 ]] && grep -q damaged "$t/out"'
+check "no kept message" '! grep -q "kept a line" "$t/out"'
+
+echo "25. A settings.json holding only whitespace still gets the hook"
+t=$(new_home); printf '\n' > "$t/.claude/settings.json"
+run_setup "$t" 'a\n' > /dev/null
+check "hook added" '[[ $(hook_count "$t") == 1 ]]'
 
 echo
 if ((fails)); then echo "$fails check(s) failed"; exit 1; fi

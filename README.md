@@ -65,14 +65,16 @@ herdr's own agent integrations (for Claude Code, Codex and others) aren't part o
   # <<< herdr-kit: stack-pane <<<
   ```
 
-  Lines outside these markers are never touched. Before writing, setup runs `herdr config check` on the result. If an item's lines would clash with yours (for example, you already have a `[keys]` section), that item's block is left out and setup prints the lines so you can merge them by hand. If the markers are damaged, or herdr can't read your config at all, setup stops before changing anything.
+  Lines outside these markers are never changed (the only exception: if your file doesn't end with a newline, setup adds one). Before writing, setup runs `herdr config check` on the result. If an item's lines would clash with yours (for example, you already have a `[keys]` section), that item's block is left out and setup shows herdr's message and the lines so you can merge them by hand. If an item's install fails (say, the file viewer can't download), its lines aren't added either.
+
+  If the markers are damaged, or herdr can't read your config at all, setup says which line and stops before asking anything. `herdr config reset-keys` is a common cause of damaged markers: it removes comment lines, including the kit's end markers, from `[keys]` sections. The simplest fix is to restore the backup reset-keys made (it prints "Created backup: …"). Or delete everything from the first leftover `# >>> herdr-kit` line to the last `# <<< herdr-kit` line, then run setup again.
 
   If you edit a kit line inside a block, the next setup run puts the kit's version back. Change it outside the block, or answer `n` for that item and add the lines yourself. herdr's Settings sometimes adds one of *your* settings just inside a kit block (it inserts before the next section header); setup moves such a line above the block and tells you. Any other unknown line inside a block makes setup stop and show it, with nothing changed.
 - **Scripts** are symlinked from this repo into place (`~/.config/herdr/scripts/`, `~/.claude/hooks/`), so `git pull` updates them.
 - **`~/.zshrc`** gets one `source` line (pane-naming). **`~/.claude/settings.json`** gets one hook entry (agent-activity).
 - **Nothing is deleted without a copy:** a file that changes or is in the way is saved as `<name>.bak-<date-time>` first.
 
-Setup asks before it changes anything, so closing it at a question (or Ctrl+C) leaves everything as it was. If one item fails, the others still run, and setup lists the problems at the end.
+Setup checks your config, then asks its questions, and only then changes anything; closing it at a question (or Ctrl+C) leaves everything as it was. If one item fails, the others still run, and setup lists the problems at the end.
 
 ## How each item is built
 
@@ -108,6 +110,13 @@ Every folder in `plugins/` and `features/` has the same files:
 6. Run `./tests/test-setup.sh`, then `./setup.sh` twice: the second run should report `already done`.
 
 A third-party plugin works the same way under `plugins/<name>/`: `install.sh` runs `herdr plugin install <owner/repo> --ref <commit> --yes`, pinned to a commit (see `plugins/file-viewer/`).
+
+## Coming from the old install.sh
+
+Earlier versions had `./install.sh`, which replaced your herdr config with a symlink to this repo's `herdr/config.toml` (now gone). After `git pull`:
+
+1. Run `./setup.sh`. It writes a fresh config with the blocks you pick in place of that symlink, and quietly replaces any other old links into this repo.
+2. `install.sh` saved your own config before linking it, as `~/.config/herdr/config.toml.bak-<date-time>`. Copy any of your own settings from that file into the new config, outside the `# >>> herdr-kit` blocks.
 
 ## Tests
 
