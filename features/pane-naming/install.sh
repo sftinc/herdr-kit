@@ -1,4 +1,5 @@
 #!/bin/bash
+# New panes are named after the folder they open in
 # Adds one line to ~/.zshrc that sources pane-naming.zsh from this repo.
 set -euo pipefail
 line="source \"$KIT/features/pane-naming/pane-naming.zsh\""

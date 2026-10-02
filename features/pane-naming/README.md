@@ -2,7 +2,9 @@
 
 ## What it does
 
-Gives every new herdr pane a name: the folder its shell starts in. The name shows on the pane's border and as the `pane` token in the sidebar.
+New panes are named after the folder they open in.
+
+The name shows on the pane's border and as the `pane` token in the sidebar.
 
 When zsh starts inside herdr (`$HERDR_PANE_ID` is set) and the pane has no name yet, it runs `herdr pane rename <pane> <folder>` in the background. Names you set yourself (prefix+shift+p) are never overwritten. The name is set once; a later `cd` doesn't change it.
 
@@ -27,15 +29,15 @@ None. Rename a pane by hand with prefix+shift+p (herdr default).
 
 ## Install
 
-```sh
-./install.sh pane-naming
-```
+`./setup.sh`, then All, or Customize and answer `y` to pane-naming.
 
-Adds the `source` line to `~/.zshrc` if it isn't there. If you moved or re-cloned the repo, re-running it points the existing line at the new path instead of adding a second one (backing up `~/.zshrc` first). Only shells started afterwards pick it up. Needs `jq`.
+Adds the `source` line to `~/.zshrc` if it isn't there. If you moved or re-cloned the repo, it points the existing line at the new path instead of adding a second one (backing up `~/.zshrc` first). Only shells started afterwards pick it up. Needs `jq` and zsh.
 
 ## Remove
 
-Delete the two lines above from `~/.zshrc`.
+`./setup.sh`, then Customize and answer `n` to pane-naming. That deletes the two lines from `~/.zshrc` (backing it up first).
+
+By hand: delete the two lines above from `~/.zshrc`.
 
 ## Check it works
 

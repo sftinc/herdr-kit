@@ -1,0 +1,5 @@
+[[keys.command]]
+key = "prefix+m"
+type = "shell"
+command = "$HOME/.config/herdr/scripts/stack-pane.sh"
+description = "stack pane under its left neighbour / unstack"

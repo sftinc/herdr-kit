@@ -2,7 +2,9 @@
 
 ## What it does
 
-A git-aware, read-only file viewer that runs as a keyboard-driven TUI in a herdr pane. Third-party plugin: [smarzban/herdr-file-viewer](https://github.com/smarzban/herdr-file-viewer).
+Git-aware file viewer: prefix+f opens it in a split, prefix+shift+f in a tab.
+
+A read-only, keyboard-driven file viewer that runs in a herdr pane. Third-party plugin: [smarzban/herdr-file-viewer](https://github.com/smarzban/herdr-file-viewer).
 
 ## Files
 
@@ -10,7 +12,7 @@ None in this repo. herdr clones the plugin to `~/.config/herdr/plugins/github/he
 
 ## Config changes
 
-In `herdr/config.toml`, the two blocks tagged `# plugin: file-viewer`:
+`config.toml` here is added to your herdr config as a marked block:
 
 ```toml
 [[keys.command]]
@@ -35,23 +37,19 @@ description = "open file viewer in tab"
 
 ## Install
 
-```sh
-./install.sh file-viewer
-```
+`./setup.sh`, then All, or Customize and answer `y` to file-viewer.
 
-This runs `herdr plugin install smarzban/herdr-file-viewer --ref c237626260478d5f2d788149fc741ddf3c3588ba --yes` unless the plugin is already installed. If it is installed at a different commit, it prints a warning and leaves it alone.
+`install.sh` runs `herdr plugin install smarzban/herdr-file-viewer --ref c237626260478d5f2d788149fc741ddf3c3588ba --yes` unless the plugin is already installed. If it's installed at a different commit, it prints a warning and leaves it alone.
 
 The plugin downloads a prebuilt binary. If that fails, it builds from source and needs Rust 1.96 or later.
 
-To move to a newer version, change `ref` in `install.sh`, run `herdr plugin uninstall herdr-file-viewer`, then `./install.sh file-viewer`.
+To move to a newer version, change `ref` in `install.sh`, run `herdr plugin uninstall herdr-file-viewer`, then `./setup.sh` again.
 
 ## Remove
 
-```sh
-herdr plugin uninstall herdr-file-viewer
-```
+`./setup.sh`, then Customize and answer `n` to file-viewer. That uninstalls the plugin and removes its block.
 
-Then delete the two `# plugin: file-viewer` blocks from `herdr/config.toml`, delete this folder, and remove its rows from `KEYBINDINGS.md`.
+By hand: `herdr plugin uninstall herdr-file-viewer`, then delete the `herdr-kit: file-viewer` block from your herdr config.
 
 ## Check it works
 

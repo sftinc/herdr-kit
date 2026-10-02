@@ -1,0 +1,12 @@
+#!/bin/bash
+# Test stand-in for herdr: only "config check" reaches the real binary ($REAL_HERDR).
+echo "$*" >> "$HOME/.stub-log"
+case "$1 $2" in
+    "config check") exec "$REAL_HERDR" config check ;;
+    "plugin list")
+        if [[ -f "$HOME/.stub-plugins" ]]; then cat "$HOME/.stub-plugins"; else echo '{"result":{"plugins":[]}}'; fi ;;
+    "plugin install")
+        echo '{"result":{"plugins":[{"plugin_id":"herdr-file-viewer","source":{"resolved_commit":"c237626260478d5f2d788149fc741ddf3c3588ba"}}]}}' > "$HOME/.stub-plugins" ;;
+    "plugin uninstall") rm -f "$HOME/.stub-plugins" ;;
+    *) exit 1 ;;
+esac

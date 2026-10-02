@@ -1,4 +1,5 @@
 #!/bin/bash
+# Git-aware file viewer: prefix+f opens it in a split, prefix+shift+f in a tab
 # Installs the herdr-file-viewer plugin at the pinned commit, unless it is already installed.
 set -euo pipefail
 ref=c237626260478d5f2d788149fc741ddf3c3588ba

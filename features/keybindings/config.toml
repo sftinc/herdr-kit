@@ -1,0 +1,5 @@
+[keys]
+next_workspace = "prefix+]"
+previous_workspace = "prefix+["
+next_agent = "prefix+}"
+previous_agent = "prefix+{"

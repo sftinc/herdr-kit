@@ -1,10 +1,17 @@
 #!/bin/bash
+# Agents sidebar shows each agent's task and the tool it's running (Claude Code)
 # Links the hook script and registers it as a PreToolUse hook in Claude Code's settings.json.
 set -euo pipefail
-link features/last-tool/herdr-last-tool.sh "$HOME/.claude/hooks/herdr-last-tool.sh"
+claude="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+if [[ ! -d "$claude" ]]; then
+    say "skipped the Claude Code hook: $claude doesn't exist (the sidebar layout is still added)"
+    exit 0
+fi
+if [[ "$claude" == "$HOME/.claude" ]]; then cmd='bash ~/.claude/hooks/herdr-last-tool.sh'; else cmd="bash \"$claude/hooks/herdr-last-tool.sh\""; fi
 
-settings="$HOME/.claude/settings.json"
-cmd='bash ~/.claude/hooks/herdr-last-tool.sh'
+link features/agent-activity/herdr-last-tool.sh "$claude/hooks/herdr-last-tool.sh"
+
+settings="$claude/settings.json"
 [[ -s "$settings" ]] || echo '{}' > "$settings"   # missing or empty
 jq empty "$settings"   # stop here if settings.json is not valid JSON
 

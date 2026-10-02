@@ -2,6 +2,8 @@
 
 ## What it does
 
+prefix+m stacks a pane under its left neighbour, or unstacks it.
+
 Toggles the focused pane between side-by-side and stacked:
 
 - If it has a pane to its left, it moves underneath that pane.
@@ -20,7 +22,7 @@ Needs `jq` (used to read herdr's JSON output).
 
 ## Config changes
 
-In `herdr/config.toml`, the block tagged `# feature: stack-pane`:
+`config.toml` here is added to your herdr config as a marked block:
 
 ```toml
 [[keys.command]]
@@ -30,7 +32,7 @@ command = "$HOME/.config/herdr/scripts/stack-pane.sh"
 description = "stack pane under its left neighbour / unstack"
 ```
 
-herdr runs `shell` commands through `$SHELL -lc`, so `$HOME` expands. The script calls herdr through `$HERDR_BIN_PATH`, which herdr sets for key commands, and falls back to `herdr` on `PATH`.
+herdr runs `shell` commands through `$SHELL -lc`, so `$HOME` expands. The script calls herdr through `$HERDR_BIN_PATH`, which herdr sets for key commands, and falls back to `herdr` on your `PATH`.
 
 ## Keybindings
 
@@ -40,17 +42,13 @@ herdr runs `shell` commands through `$SHELL -lc`, so `$HOME` expands. The script
 
 ## Install
 
-```sh
-./install.sh stack-pane
-```
-
-Links the script into `~/.config/herdr/scripts/`. The binding comes from `herdr/config.toml`, so run the full `./install.sh` once on a new Mac.
+`./setup.sh`, then All, or Customize and answer `y` to stack-pane. Then press prefix+shift+r in herdr so the new key is picked up.
 
 ## Remove
 
-1. Delete the `# feature: stack-pane` block from `herdr/config.toml`.
-2. `rm ~/.config/herdr/scripts/stack-pane.sh`
-3. Remove its row from `KEYBINDINGS.md`.
+`./setup.sh`, then Customize and answer `n` to stack-pane. That removes the link and the block.
+
+By hand: delete the `herdr-kit: stack-pane` block from your herdr config and `~/.config/herdr/scripts/stack-pane.sh`.
 
 ## Check it works
 
