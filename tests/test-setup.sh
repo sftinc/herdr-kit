@@ -51,11 +51,12 @@ echo "1. All, then All again"
 t=$(new_home); c=$(conf_of "$t")
 run_setup "$t" 'a\n' > "$t/out1"; rc=$?
 check "exit 0" '[[ $rc == 0 ]]'
-check "4 blocks" '[[ $(blocks "$c") == 4 ]]'
+check "5 blocks" '[[ $(blocks "$c") == 5 ]]'
 check "herdr accepts the config" 'herdr_ok "$c"'
 check "stack-pane copied (a file, not a link)" 'is_copy "$t/.config/herdr/scripts/stack-pane.sh"'
 check "hook copied" 'is_copy "$t/.claude/hooks/herdr-last-tool.sh"'
 check "pane-naming copied" 'is_copy "$t/.config/herdr/scripts/pane-naming.zsh"'
+check "new-agent copied (a file, not a link)" 'is_copy "$t/.config/herdr/scripts/new-agent.sh"'
 check "copies are executable where the repo's are" '[[ -x $t/.config/herdr/scripts/stack-pane.sh ]]'
 check "zshrc sources the copy, not the repo" 'grep -qx "source \"\$HOME/.config/herdr/scripts/pane-naming.zsh\"" "$t/.zshrc"'
 check "hook entry once" '[[ $(hook_count "$t") == 1 ]]'
@@ -70,7 +71,7 @@ check "second All: no new backups" '[[ $(baks "$t") == "$b1" ]]'
 echo "2. Customize: say no to agent-activity and stack-pane"
 run_setup "$t" "$(customize agent-activity stack-pane)" > "$t/out3"; rc=$?
 check "exit 0" '[[ $rc == 0 ]]'
-check "2 blocks left" '[[ $(blocks "$c") == 2 ]]'
+check "3 blocks left" '[[ $(blocks "$c") == 3 ]]'
 check "agent-activity block gone" '! has_block "$c" agent-activity'
 check "stack-pane block gone" '! has_block "$c" stack-pane'
 check "keybindings block kept" 'has_block "$c" keybindings'
@@ -82,7 +83,7 @@ run_setup "$t" "$(customize agent-activity stack-pane)" > /dev/null
 check "same answers again: config unchanged" 'cmp -s "$c" "$t/conf3"'
 check "same answers again: no new backups" '[[ $(baks "$t") == "$b3" ]]'
 run_setup "$t" 'a\n' > /dev/null
-check "All again: 4 blocks, each once" '[[ $(blocks "$c") == 4 ]] && [[ $(sort "$c" | uniq -d | grep -c "^# >>>") == 0 ]]'
+check "All again: 5 blocks, each once" '[[ $(blocks "$c") == 5 ]] && [[ $(sort "$c" | uniq -d | grep -c "^# >>>") == 0 ]]'
 check "All again: hook entry once" '[[ $(hook_count "$t") == 1 ]]'
 
 echo "3. Friend config with its own [keys] and [ui.sidebar.agents], no final newline"
@@ -104,7 +105,7 @@ printf 'theme.name = "nord"\n' > "$t/dots/herdr.toml"; chmod 600 "$t/dots/herdr.
 run_setup "$t" 'a\n' > /dev/null
 check "still a symlink" '[[ -L $c ]]'
 check "still mode 600" '[[ $(stat -f %Lp "$t/dots/herdr.toml") == 600 ]]'
-check "blocks are in the dotfiles copy" '[[ $(blocks "$t/dots/herdr.toml") == 4 ]]'
+check "blocks are in the dotfiles copy" '[[ $(blocks "$t/dots/herdr.toml") == 5 ]]'
 
 echo "5. Damaged markers"
 t=$(new_home); c=$(conf_of "$t"); mkdir -p "$(dirname "$c")"
@@ -126,7 +127,7 @@ printf 'foo_unknown = 1\n' > "$c"
 run_setup "$t" 'a\n' > "$t/out"; rc=$?
 check "unknown key: exit 0" '[[ $rc == 0 ]]'
 check "unknown key: note printed" 'grep -q "Note: herdr reports issues" "$t/out"'
-check "unknown key: 4 blocks" '[[ $(blocks "$c") == 4 ]]'
+check "unknown key: 5 blocks" '[[ $(blocks "$c") == 5 ]]'
 
 echo "7. No Claude Code folder"
 t=$(new_home no-claude); c=$(conf_of "$t")
@@ -189,11 +190,11 @@ check "says it left it" 'grep -q "left as is" "$t/out"'
 echo "14. Your lines stay byte-for-byte (trailing blank lines too)"
 t=$(new_home); c=$(conf_of "$t"); mkdir -p "$(dirname "$c")"
 printf 'theme.name = "nord"\n\n\n' > "$c"; cp "$c" "$t/orig"
-run_setup "$t" "$(customize file-viewer agent-activity keybindings pane-naming stack-pane)" > /dev/null
+run_setup "$t" "$(customize file-viewer agent-activity keybindings new-agent pane-naming stack-pane)" > /dev/null
 check "all n on a kit-free config: untouched" 'cmp -s "$c" "$t/orig"'
 check "all n: no backup made" '[[ $(baks "$t") == 0 ]]'
 run_setup "$t" 'a\n' > /dev/null
-run_setup "$t" "$(customize file-viewer agent-activity keybindings pane-naming stack-pane)" > /dev/null
+run_setup "$t" "$(customize file-viewer agent-activity keybindings new-agent pane-naming stack-pane)" > /dev/null
 check "All then all n: back to the original bytes" 'cmp -s "$c" "$t/orig"'
 
 echo "15. pane-naming y/n cycles leave .zshrc as it was"
@@ -236,7 +237,7 @@ echo "20. A config with Windows line endings"
 t=$(new_home); c=$(conf_of "$t")
 run_setup "$t" 'a\n' > /dev/null
 perl -pi -e 's/\n/\r\n/' "$c"
-run_setup "$t" "$(customize file-viewer agent-activity keybindings pane-naming stack-pane)" > /dev/null; rc=$?
+run_setup "$t" "$(customize file-viewer agent-activity keybindings new-agent pane-naming stack-pane)" > /dev/null; rc=$?
 check "exit 0" '[[ $rc == 0 ]]'
 check "all blocks removed" '[[ $(grep -c "herdr-kit" "$c") == 0 ]]'
 
@@ -261,7 +262,7 @@ printf 'a = 1\r\n\r\n   \n' > "$c"; cp "$c" "$t/orig"
 run_setup "$t" 'a\n' > /dev/null; cp "$c" "$t/after1"; b1=$(baks "$t")
 run_setup "$t" 'a\n' > /dev/null
 check "second All: unchanged" 'cmp -s "$c" "$t/after1" && [[ $(baks "$t") == "$b1" ]]'
-run_setup "$t" "$(customize file-viewer agent-activity keybindings pane-naming stack-pane)" > /dev/null
+run_setup "$t" "$(customize file-viewer agent-activity keybindings new-agent pane-naming stack-pane)" > /dev/null
 check "all n: original bytes" 'cmp -s "$c" "$t/orig"'
 
 echo "24. No 'kept' claims when setup stops"
@@ -284,7 +285,7 @@ ln -s "$t/old-kit/herdr/config.toml" "$c"
 run_setup "$t" 'a\n' > "$t/out"; rc=$?
 check "exit 0" '[[ $rc == 0 ]]'
 check "config is now a regular file" '[[ -f $c && ! -L $c ]]'
-check "4 blocks" '[[ $(blocks "$c") == 4 ]]'
+check "5 blocks" '[[ $(blocks "$c") == 5 ]]'
 check "old copy untouched" 'cmp -s "$t/old-kit/herdr/config.toml" "$t/old-copy"'
 check "says it replaced the old link" 'grep -q "old herdr-kit" "$t/out"'
 
@@ -293,7 +294,7 @@ t=$(new_home); c=$(conf_of "$t"); mkdir -p "$(dirname "$c")" "$t/dotfiles/herdr"
 printf 'theme.name = "nord"\n' > "$t/dotfiles/herdr/config.toml"; ln -s "$t/dotfiles/herdr/config.toml" "$c"
 run_setup "$t" 'a\n' > /dev/null
 check "still a symlink" '[[ -L $c ]]'
-check "blocks in the dotfiles copy, your line kept" '[[ $(blocks "$t/dotfiles/herdr/config.toml") == 4 ]] && grep -q "^theme.name" "$t/dotfiles/herdr/config.toml"'
+check "blocks in the dotfiles copy, your line kept" '[[ $(blocks "$t/dotfiles/herdr/config.toml") == 5 ]] && grep -q "^theme.name" "$t/dotfiles/herdr/config.toml"'
 
 echo "28. herdr's message is shown when setup can't read your config"
 t=$(new_home); c=$(conf_of "$t"); mkdir -p "$(dirname "$c")"

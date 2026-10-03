@@ -23,6 +23,7 @@ herdr-kit: install everything? [A]ll / [c]ustomize:
     file-viewer     Git-aware file viewer: prefix+f opens it in a split, prefix+shift+f in a tab [y/n]:
     agent-activity  Agents sidebar shows each agent's task and the tool it's running (Claude Code) [y/n]:
     keybindings     prefix+] / prefix+[ switch spaces, prefix+} / prefix+{ switch agents [y/n]:
+    new-agent       prefix+a opens a new Claude pane to the right, prefix+shift+a below [y/n]:
     pane-naming     New panes are named after the folder they open in [y/n]:
     stack-pane      prefix+m stacks a pane under its left neighbour, or unstacks it [y/n]:
   ```
@@ -38,6 +39,7 @@ After setup, press prefix+shift+r in herdr so new keybindings are picked up. (`p
 | file-viewer | Git-aware file viewer: prefix+f opens it in a split, prefix+shift+f in a tab | [plugins/file-viewer](plugins/file-viewer/README.md) |
 | agent-activity | Agents sidebar shows each agent's task and the tool it's running (Claude Code) | [features/agent-activity](features/agent-activity/README.md) |
 | keybindings | prefix+] / prefix+[ switch spaces, prefix+} / prefix+{ switch agents | [features/keybindings](features/keybindings/README.md) |
+| new-agent | prefix+a opens a new Claude pane to the right, prefix+shift+a below | [features/new-agent](features/new-agent/README.md) |
 | pane-naming | New panes are named after the folder they open in | [features/pane-naming](features/pane-naming/README.md) |
 | stack-pane | prefix+m stacks a pane under its left neighbour, or unstacks it | [features/stack-pane](features/stack-pane/README.md) |
 

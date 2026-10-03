@@ -10,6 +10,8 @@ Every key the kit adds, and which item it comes from. `prefix` is herdr's prefix
 | prefix+{ | previous agent in the Agents panel | [keybindings](features/keybindings/README.md) |
 | prefix+f | file viewer in a split | [file-viewer](plugins/file-viewer/README.md) |
 | prefix+shift+f | file viewer in a tab | [file-viewer](plugins/file-viewer/README.md) |
+| prefix+a | new Claude pane to the right | [new-agent](features/new-agent/README.md) |
+| prefix+shift+a | new Claude pane below | [new-agent](features/new-agent/README.md) |
 | prefix+m | stack / unstack the focused pane | [stack-pane](features/stack-pane/README.md) |
 
 ## Notes

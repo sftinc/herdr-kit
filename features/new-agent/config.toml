@@ -1,0 +1,11 @@
+[[keys.command]]
+key = "prefix+a"
+type = "shell"
+command = "$HOME/.config/herdr/scripts/new-agent.sh right"
+description = "new claude pane to the right"
+
+[[keys.command]]
+key = "prefix+shift+a"
+type = "shell"
+command = "$HOME/.config/herdr/scripts/new-agent.sh down"
+description = "new claude pane below"
