@@ -4,7 +4,7 @@
 
 Git-aware file viewer: prefix+f opens it in a split, prefix+shift+f in a tab.
 
-A read-only, keyboard-driven file viewer that runs in a herdr pane. Third-party plugin: [smarzban/herdr-file-viewer](https://github.com/smarzban/herdr-file-viewer).
+A read-only, keyboard-driven file viewer that runs in a herdr pane. Third-party plugin: the [sftinc fork](https://github.com/sftinc/herdr-file-viewer) of [smarzban/herdr-file-viewer](https://github.com/smarzban/herdr-file-viewer). The fork adds live refresh: the tree, git markers and open file update while the pane is unfocused, so an agent's edits in another pane show up without clicking in. The upstream proposal is [issue #180](https://github.com/smarzban/herdr-file-viewer/issues/180).
 
 ## Files
 
@@ -39,15 +39,15 @@ description = "open file viewer in tab"
 
 `./setup.sh`, then All, or Customize and answer `y` to file-viewer.
 
-`install.sh` runs `herdr plugin install smarzban/herdr-file-viewer --ref c237626260478d5f2d788149fc741ddf3c3588ba --yes` unless the plugin is already installed. If it's installed at a different commit, it prints a warning and leaves it alone.
+`install.sh` runs `herdr plugin install sftinc/herdr-file-viewer --ref <last line of pins> --yes`. If an earlier kit version installed the upstream plugin (any commit in `pins`), it uninstalls that copy and installs the fork, then says so. A copy at any other commit is left alone with a warning.
 
 The plugin downloads a prebuilt binary. If that fails, it builds from source and needs Rust 1.96 or later.
 
-To move to a newer version, change `ref` in `install.sh`, run `herdr plugin uninstall herdr-file-viewer`, then `./setup.sh` again.
+To move to a newer version, append the new commit to `pins` (keep the old ones: they are how setup recognises its own copies), then run `./setup.sh`. It moves the old copy over by itself.
 
 ## Remove
 
-`./setup.sh`, then Customize and answer `n` to file-viewer. That removes its block, and uninstalls the plugin if it's the pinned version setup installs. A copy you installed yourself at another version is left alone.
+`./setup.sh`, then Customize and answer `n` to file-viewer. That removes its block, and uninstalls the plugin if it is at a commit in `pins`. A copy you installed yourself at another version is left alone.
 
 By hand: `herdr plugin uninstall herdr-file-viewer`, then delete the `herdr-kit: file-viewer` block from your herdr config.
 

@@ -327,6 +327,38 @@ RUN_KIT="$t/kit-copy" run_setup "$t" 'a\n' > /dev/null
 check "copy updated" 'grep -q "^# new line" "$t/.config/herdr/scripts/stack-pane.sh"'
 check "no backup of our own old copy" '[[ $(baks "$t") == "$b" ]]'
 
+old=$(head -n 1 "$KIT/plugins/file-viewer/pins")
+new=$(tail -n 1 "$KIT/plugins/file-viewer/pins")
+# installed <home> <commit>: pretend herdr-file-viewer is installed at <commit>.
+installed() { printf '{"result":{"plugins":[{"plugin_id":"herdr-file-viewer","source":{"resolved_commit":"%s"}}]}}\n' "$2" > "$1/.stub-plugins"; }
+
+echo "32. An older kit pin is moved over to the fork"
+t=$(new_home); installed "$t" "$old"
+run_setup "$t" 'a\n' > "$t/out"
+check "uninstalls, then installs the fork at the pin" '[[ $(grep -n "^plugin uninstall herdr-file-viewer" "$t/.stub-log" | cut -d: -f1) -lt $(grep -n "^plugin install sftinc/herdr-file-viewer --ref $new" "$t/.stub-log" | cut -d: -f1) ]]'
+check "says it moved" 'grep -q "updated herdr-file-viewer to the sftinc fork at $new" "$t/out"'
+check "now at the pin" 'grep -q "$new" "$t/.stub-plugins"'
+
+echo "33. 'n' uninstalls an older kit pin"
+t=$(new_home); installed "$t" "$old"
+run_setup "$t" "$(customize file-viewer)" > "$t/out"
+check "plugin removed" '[[ ! -f $t/.stub-plugins ]]'
+
+echo "34. A failed move leaves no plugin, and the next run installs it"
+t=$(new_home); installed "$t" "$old"; touch "$t/.stub-fail-install"
+run_setup "$t" 'a\n' > "$t/out"; rc=$?
+check "exit 1" '[[ $rc == 1 ]]'
+check "no plugin left" '[[ ! -f $t/.stub-plugins ]]'
+rm "$t/.stub-fail-install"
+run_setup "$t" 'a\n' > "$t/out2"
+check "the next run installs the fork" 'grep -q "$new" "$t/.stub-plugins"'
+
+echo "35. All leaves a file-viewer the kit didn't install"
+t=$(new_home); installed "$t" deadbeef
+run_setup "$t" 'a\n' > "$t/out"
+check "still at its own commit" 'grep -q deadbeef "$t/.stub-plugins"'
+check "says it left it" 'grep -q "left as is" "$t/out"'
+
 echo
 if ((fails)); then echo "$fails check(s) failed"; exit 1; fi
 echo "all checks passed"

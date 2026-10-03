@@ -1,12 +1,12 @@
 #!/bin/bash
-# Uninstalls herdr-file-viewer, but only the copy setup installs (the pinned commit); any other copy is left alone.
+# Uninstalls herdr-file-viewer, but only a copy setup installed (any commit in pins); any other copy is left alone.
 set -euo pipefail
-ref=c237626260478d5f2d788149fc741ddf3c3588ba
+pins="$(dirname "$0")/pins"
 have=$(herdr plugin list --json | jq -r '.result.plugins[]? | select(.plugin_id == "herdr-file-viewer") | .source.resolved_commit // "unknown"')
 
-if [[ "$have" == "$ref" ]]; then
+if [[ -n "$have" ]] && grep -qx "$have" "$pins"; then
     herdr plugin uninstall herdr-file-viewer >/dev/null
     say "uninstalled herdr-file-viewer"
 elif [[ -n "$have" ]]; then
-    say "herdr-file-viewer is at $have, not the commit setup installs; left as is"
+    say "herdr-file-viewer is at $have, not a commit setup installs; left as is"
 fi

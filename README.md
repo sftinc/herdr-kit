@@ -86,6 +86,7 @@ Every folder in `plugins/` and `features/` has the same files:
 | `install.sh` | line 2 is the one-line description shown by setup; installs links, hooks or plugins; safe to re-run |
 | `remove.sh` | undoes only what the kit added (links into this repo, its own hook entry, its own `.zshrc` line); safe to re-run |
 | `config.toml` | optional: the herdr lines setup adds as the item's block |
+| `pins` | file-viewer only: every commit the kit has pinned, oldest first; the last is installed |
 
 ## Add a feature
 
@@ -109,7 +110,7 @@ Every folder in `plugins/` and `features/` has the same files:
 5. Add any keys to `KEYBINDINGS.md`, and write `README.md` with the headings above.
 6. Run `./tests/test-setup.sh`, then `./setup.sh` twice: the second run should report `already done`.
 
-A third-party plugin works the same way under `plugins/<name>/`: `install.sh` runs `herdr plugin install <owner/repo> --ref <commit> --yes`, pinned to a commit (see `plugins/file-viewer/`).
+A third-party plugin works the same way under `plugins/<name>/`: `install.sh` runs `herdr plugin install <owner/repo> --ref <commit> --yes`, pinned to a commit (see `plugins/file-viewer/`, whose `pins` file also lets setup recognise and move copies it installed earlier).
 
 ## Coming from the old install.sh
 
