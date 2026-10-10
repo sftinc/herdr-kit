@@ -59,14 +59,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, LocalProcessTerminalVi
     }
 
     // Left Option + key sends herdr's prefix (Ctrl-B) and then the key, so left Option+h
-    // is prefix+h. Right Option still works as Meta.
+    // is prefix+h. Arrows stand in for h/j/k/l: left Option+left is prefix+h, and with
+    // Shift it is prefix+H. Right Option still works as Meta.
     func watchLeftOptionChords() {
         let leftOptionMask: UInt = 0x20 // NX_DEVICELALTKEYMASK
+        let arrowLetters: [UInt16: String] = [123: "h", 125: "j", 126: "k", 124: "l"] // left, down, up, right
         NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             let flags = event.modifierFlags
+            var key = event.charactersIgnoringModifiers
+            if let letter = arrowLetters[event.keyCode] {
+                key = flags.contains(.shift) ? letter.uppercased() : letter
+            }
             guard flags.rawValue & leftOptionMask != 0,
                   flags.isDisjoint(with: [.command, .control]),
-                  let key = event.charactersIgnoringModifiers,
+                  let key,
                   key.allSatisfy(\.isASCII),
                   let terminal = self?.terminal
             else { return event }
