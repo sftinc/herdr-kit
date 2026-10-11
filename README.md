@@ -21,7 +21,7 @@ herdr-kit: install everything? [A]ll / [c]ustomize:
 
   ```
     file-viewer     Git-aware file viewer: prefix+f opens it in a split, prefix+shift+f in a tab [y/n]:
-    agent-activity  Agents sidebar shows each agent's task and the tool it's running (Claude Code) [y/n]:
+    agent-activity  Agents sidebar shows what each agent is working on now and the tool it's running [y/n]:
     keybindings     prefix+] / prefix+[ switch spaces, prefix+} / prefix+{ switch agents [y/n]:
     new-agent       prefix+a opens a new Claude pane to the right, prefix+shift+a below [y/n]:
     pane-naming     New panes are named after the folder they open in [y/n]:
@@ -37,7 +37,7 @@ After setup, press prefix+shift+r in herdr so new keybindings are picked up. (`p
 | Item | What you get | Details |
 |---|---|---|
 | file-viewer | Git-aware file viewer: prefix+f opens it in a split, prefix+shift+f in a tab | [plugins/file-viewer](plugins/file-viewer/README.md) |
-| agent-activity | Agents sidebar shows each agent's task and the tool it's running (Claude Code) | [features/agent-activity](features/agent-activity/README.md) |
+| agent-activity | Agents sidebar shows what each agent is working on now and the tool it's running (Claude Code, Codex) | [features/agent-activity](features/agent-activity/README.md) |
 | keybindings | prefix+] / prefix+[ switch spaces, prefix+} / prefix+{ switch agents | [features/keybindings](features/keybindings/README.md) |
 | new-agent | prefix+a opens a new Claude pane to the right, prefix+shift+a below | [features/new-agent](features/new-agent/README.md) |
 | pane-naming | New panes are named after the folder they open in | [features/pane-naming](features/pane-naming/README.md) |
@@ -72,7 +72,7 @@ herdr's own agent integrations (for Claude Code, Codex and others) aren't part o
   If the markers are damaged, or herdr can't read your config at all, setup says which line and stops before asking anything. `herdr config reset-keys` is a common cause of damaged markers: it removes comment lines, including the kit's end markers, from `[keys]` sections. The simplest fix is to restore the backup reset-keys made (it prints "Created backup: …"). Or delete everything from the first leftover `# >>> herdr-kit` line to the last `# <<< herdr-kit` line, then run setup again.
 
   If you edit a kit line inside a block, the next setup run puts the kit's version back. Change it outside the block, or answer `n` for that item and add the lines yourself. herdr's Settings sometimes adds one of *your* settings just inside a kit block (it inserts before the next section header); setup moves such a line above the block and tells you. Any other unknown line inside a block makes setup stop and show it, with nothing changed.
-- **Scripts** are copied into place (`~/.config/herdr/scripts/`, `~/.claude/hooks/`), so everything keeps working if you delete or move this repo. Each copy has an `# Installed by herdr-kit` line; setup only ever replaces or removes files with that line. After a `git pull`, run `./setup.sh` again to pick up changes.
+- **Scripts** are copied into place (`~/.config/herdr/scripts/`, `~/.config/herdr/herdr-kit/`, `~/.claude/hooks/`), so everything keeps working if you delete or move this repo. Each copy has an `# Installed by herdr-kit` line; setup only ever replaces or removes files with that line. After a `git pull`, run `./setup.sh` again to pick up changes. agent-activity also links its herdr plugin from there (`herdr plugin link`).
 - **`~/.zshrc`** gets one `source` line (pane-naming). **`~/.claude/settings.json`** gets one hook entry (agent-activity).
 - **Nothing is deleted without a copy:** a file that changes or is in the way is saved as `<name>.bak-<date-time>` first.
 
@@ -88,6 +88,7 @@ Every folder in `plugins/` and `features/` has the same files:
 | `install.sh` | line 2 is the one-line description shown by setup; installs links, hooks or plugins; safe to re-run |
 | `remove.sh` | undoes only what the kit added (links into this repo, its own hook entry, its own `.zshrc` line); safe to re-run |
 | `config.toml` | optional: the herdr lines setup adds as the item's block |
+| `config.old` | optional: lines earlier versions of `config.toml` added, so setup replaces them instead of stopping |
 | `pins` | file-viewer only: every commit the kit has pinned, oldest first; the last is installed |
 
 ## Add a feature
@@ -128,6 +129,12 @@ Earlier versions had `./install.sh`, which replaced your herdr config with a sym
 ```
 
 Runs setup in throwaway home folders with a stand-in for herdr (only `herdr config check` uses the real one), so it never touches your live setup. It covers All, Customize with removals, re-runs, a config that clashes, a symlinked config, deleting the repo afterwards, your own file at a target, damaged markers, a broken config, no Claude Code, and closing setup at the first question.
+
+```sh
+./tests/test-agent-task.sh
+```
+
+Runs the agent-task plugin script against sample Claude Code and Codex logs, with stand-ins for herdr, claude and codex.
 
 ## Not in this repo
 
