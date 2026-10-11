@@ -40,7 +40,11 @@ cat > "$app/Contents/Info.plist" <<'PLIST'
 PLIST
 
 xattr -cr "$app"
-codesign --force -s - "$app"
+# Sign with the "Herdr Local Signing" certificate if you made one (see README), so macOS keeps
+# privacy grants such as Full Disk Access across rebuilds. Otherwise sign ad-hoc.
+identity="Herdr Local Signing"
+security find-certificate -c "$identity" >/dev/null 2>&1 || identity=-
+codesign --force -s "$identity" "$app"
 echo "Built $app"
 
 if [[ "${1:-}" == "--install" ]]; then
