@@ -4,7 +4,11 @@ echo "$*" >> "$HOME/.stub-log"
 case "$1 $2" in
     "config check") exec "$REAL_HERDR" config check ;;
     "plugin list")
-        if [[ -f "$HOME/.stub-plugins" ]]; then cat "$HOME/.stub-plugins"; else echo '{"result":{"plugins":[]}}'; fi ;;
+        fv='[]'; [[ -f "$HOME/.stub-plugins" ]] && fv=$(jq '.result.plugins' "$HOME/.stub-plugins")
+        lk='[]'; [[ -f "$HOME/.stub-links" ]] && lk=$(cat "$HOME/.stub-links")
+        jq -n --argjson a "$fv" --argjson b "$lk" '{result:{plugins:($a + $b)}}' ;;
+    "plugin link") jq -n --arg p "$3" '[{plugin_id:"herdr-kit-agent-task", plugin_root:$p}]' > "$HOME/.stub-links" ;;
+    "plugin unlink") rm -f "$HOME/.stub-links" ;;
     "plugin install")
         [[ -f "$HOME/.stub-fail-install" ]] && { echo "network error" >&2; exit 1; }
         ref=""; prev=""

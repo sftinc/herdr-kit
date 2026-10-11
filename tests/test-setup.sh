@@ -46,6 +46,7 @@ has_block() { grep -qx "# >>> herdr-kit: $2 >>>" "$1"; }
 baks()    { find "$1" -name '*.bak-*' | wc -l | tr -d ' '; }
 hook_count() { jq --arg c "$HOOK" '[.hooks.PreToolUse[]?.hooks[]?.command | select(. == $c)] | length' "$1/.claude/settings.json"; }
 herdr_ok() { HERDR_CONFIG_PATH="$1" "$REAL_HERDR" config check | head -1 | grep -qi '^config: ok$'; }
+plugin_dir() { echo "$(cd "$1" && pwd -P)/.config/herdr/herdr-kit/agent-task"; }   # resolved, as herdr stores it (/var -> /private/var)
 
 echo "1. All, then All again"
 t=$(new_home); c=$(conf_of "$t")
@@ -62,11 +63,15 @@ check "zshrc sources the copy, not the repo" 'grep -qx "source \"\$HOME/.config/
 check "hook entry once" '[[ $(hook_count "$t") == 1 ]]'
 check "zshrc sources pane-naming once" '[[ $(grep -c pane-naming.zsh "$t/.zshrc") == 1 ]]'
 check "plugin installed" '[[ -f $t/.stub-plugins ]]'
+check "agent-task plugin copied" 'is_copy "$(plugin_dir "$t")/herdr-plugin.toml" && is_copy "$(plugin_dir "$t")/agent-task.sh"'
+check "agent-task plugin linked once" '[[ $(grep -c "^plugin link $(plugin_dir "$t")$" "$t/.stub-log") == 1 ]]'
+check "sidebar row 2 is \$task" 'grep -q "token = \"\$task\"" "$c"'
 cp "$c" "$t/conf1"; b1=$(baks "$t")
 run_setup "$t" 'a\n' > "$t/out2"; rc=$?
 check "second All: exit 0" '[[ $rc == 0 ]]'
 check "second All: config unchanged" 'cmp -s "$c" "$t/conf1"'
 check "second All: no new backups" '[[ $(baks "$t") == "$b1" ]]'
+check "second All: plugin not linked again" '[[ $(grep -c "^plugin link " "$t/.stub-log") == 1 ]] && grep -q "already done: herdr plugin herdr-kit-agent-task" "$t/out2"'
 
 echo "2. Customize: say no to agent-activity and stack-pane"
 run_setup "$t" "$(customize agent-activity stack-pane)" > "$t/out3"; rc=$?
@@ -78,6 +83,8 @@ check "keybindings block kept" 'has_block "$c" keybindings'
 check "hook copy gone" '[[ ! -e $t/.claude/hooks/herdr-last-tool.sh ]]'
 check "hook entry gone" '[[ $(hook_count "$t") == 0 ]]'
 check "stack-pane copy gone" '[[ ! -e $t/.config/herdr/scripts/stack-pane.sh ]]'
+check "agent-task plugin unlinked" 'grep -q "^plugin unlink herdr-kit-agent-task$" "$t/.stub-log" && [[ ! -e $t/.stub-links ]]'
+check "agent-task plugin folder gone" '[[ ! -e $(plugin_dir "$t") ]]'
 cp "$c" "$t/conf3"; b3=$(baks "$t")
 run_setup "$t" "$(customize agent-activity stack-pane)" > /dev/null
 check "same answers again: config unchanged" 'cmp -s "$c" "$t/conf3"'
@@ -136,6 +143,9 @@ check "exit 0" '[[ $rc == 0 ]]'
 check "says the hook was skipped" 'grep -q "skipped the Claude Code hook" "$t/out"'
 check "layout block added" 'has_block "$c" agent-activity'
 check "no .claude created" '[[ ! -e $t/.claude ]]'
+check "plugin still linked" '[[ -f $t/.stub-links ]] && is_copy "$(plugin_dir "$t")/agent-task.sh"'
+run_setup "$t" "$(customize agent-activity)" > /dev/null
+check "'n' without Claude Code: plugin unlinked and removed" '[[ ! -e $t/.stub-links && ! -e $(plugin_dir "$t") ]]'
 
 echo "8. No answer (stdin closed)"
 t=$(new_home); c=$(conf_of "$t")
@@ -308,6 +318,7 @@ RUN_KIT="$t/kit-copy" run_setup "$t" 'a\n' > /dev/null
 rm -rf "$t/kit-copy"
 check "hook still there" 'is_copy "$t/.claude/hooks/herdr-last-tool.sh"'
 check "stack-pane still there" 'is_copy "$t/.config/herdr/scripts/stack-pane.sh"'
+check "agent-task plugin still there" 'is_copy "$(plugin_dir "$t")/agent-task.sh"'
 check ".zshrc loads without errors" '[[ -z "$(HOME=$t zsh -c "source $t/.zshrc" 2>&1)" ]]'
 
 echo "30. Your own file at a target is backed up, and never removed"
@@ -370,6 +381,26 @@ RUN_KIT="$t/kit-copy" run_setup "$t" 'a\n' > "$t/out"; rc=$?
 check "exit 0" '[[ $rc == 0 ]]'
 check "old line gone" '! grep -q "old description" "$c"'
 check "current line back, once" '[[ $(grep -c "^description = \"stack pane under its left neighbour / unstack\"$" "$c") == 1 ]]'
+
+echo "37. An agent-activity block from before the task line is upgraded"
+t=$(new_home); c=$(conf_of "$t"); mkdir -p "$(dirname "$c")"
+cat > "$c" <<'EOF'
+theme.name = "nord"
+
+# >>> herdr-kit: agent-activity >>>
+[ui.sidebar.agents]
+row_gap = 1
+rows = [
+  ["state_icon", "workspace"],
+  [{ token = "terminal_title_stripped", bold = true }],
+  [{ token = "$last_tool", dim = true }],
+]
+# <<< herdr-kit: agent-activity <<<
+EOF
+run_setup "$t" 'a\n' > "$t/out"; rc=$?
+check "exit 0" '[[ $rc == 0 ]]'
+check "old row gone, \$task row in" '! grep -q terminal_title_stripped "$c" && grep -q "token = \"\$task\"" "$c"'
+check "herdr accepts the config" 'herdr_ok "$c"'
 
 echo
 if ((fails)); then echo "$fails check(s) failed"; exit 1; fi

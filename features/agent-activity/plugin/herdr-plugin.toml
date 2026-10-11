@@ -1,0 +1,11 @@
+# Installed by herdr-kit: edit it in the repo and run ./setup.sh again.
+# Sets each agent's $task sidebar token to what it is working on now (see agent-task.sh).
+id = "herdr-kit-agent-task"
+name = "herdr-kit agent task"
+version = "1.0.0"
+min_herdr_version = "0.9.3"
+platforms = ["macos"]
+
+[[events]]
+on = "pane.agent_status_changed"
+command = ["bash", "agent-task.sh"]
