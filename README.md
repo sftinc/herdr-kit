@@ -49,7 +49,7 @@ All the keys are listed in [KEYBINDINGS.md](KEYBINDINGS.md). The Mac app is sepa
 
 - macOS with zsh
 - [herdr](https://herdr.dev) and `jq` on your `PATH` (setup stops and says so if either is missing)
-- [Claude Code](https://claude.com/claude-code), only for the hook part of agent-activity
+- agent-activity: the task line needs the `claude` or `codex` CLI (whichever agent you run) with herdr's integration for it turned on; the tool line needs [Claude Code](https://claude.com/claude-code)
 - Rust 1.96+, only if the file viewer can't download its prebuilt binary
 - Xcode, only to build the Mac app
 

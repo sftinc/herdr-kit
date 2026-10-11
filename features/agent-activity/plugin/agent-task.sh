@@ -3,6 +3,7 @@
 # herdr plugin hook for pane.agent_status_changed: sets the pane's $task sidebar token to a few words on what
 # its agent (Claude Code or Codex) is working on now, summarised by that agent's own CLI from the session log.
 set -uo pipefail
+exec >/dev/null 2>&1    # never prints; a leftover child holding herdr's pipes would keep the plugin slot busy
 
 PROMPTS=6                            # recent prompts sent to the summariser, newest included
 REPLY_CHARS=1500                     # how much of the agent's last reply is sent (its end)
@@ -30,7 +31,7 @@ log_of() {
 # jq -nR program: the newest prompt in a log as {key, seq, new, earlier, reply}; nothing if there is none.
 # key is the prompt's line number, seq its time in epoch ms. Lines that don't parse (half-written) are skipped.
 CONTEXT='
-def wrapper: test("^\\s*(<(command-|local-command-|system-reminder|task-notification|environment_context|user_instructions|INSTRUCTIONS)|# AGENTS\\.md)");
+def wrapper: test("^\\s*(<(command-|local-command-|system-reminder|task-notification|task-id|bash-|environment_context|user_instructions|INSTRUCTIONS)|# AGENTS\\.md|\\[Request interrupted by user)");
 def ms: (.[0:19] + "Z" | fromdateiso8601) * 1000 + ((.[20:23] | tonumber?) // 0);
 def text_of($type): [.[]? | select(.type == $type) | .text | select(wrapper | not)] | join("\n");
 [ inputs as $raw | input_line_number as $line | ($raw | fromjson?) as $e | $e
@@ -41,7 +42,7 @@ def text_of($type): [.[]? | select(.type == $type) | .text | select(wrapper | no
                             else text_of("text") end) as $t
         | {user: $t, line: $line, ts: $e.timestamp}
       elif .type == "attachment" and .attachment.type == "queued_command" and (.attachment.commandMode // "prompt") == "prompt" then
-        {user: .attachment.prompt, line: $line, ts: .timestamp}
+        {user: (.attachment.prompt | if wrapper then "" else . end), line: $line, ts: .timestamp}
       elif .type == "assistant" and (.isSidechain | not) then {agent: (.message.content | text_of("text"))}
       else empty end
     else
@@ -90,7 +91,7 @@ prompt=$(jq -r --arg cur "${current:-(none)}" '
 tmp=$(mktemp -d) || exit 0
 trap 'rm -rf "$tmp"' EXIT
 case "$agent" in
-    claude) cmd=(claude -p --model haiku --no-session-persistence "$prompt"); sink="$tmp/out" ;;
+    claude) cmd=(claude -p --model haiku --no-session-persistence --tools "" --setting-sources "" --strict-mcp-config --disable-slash-commands "$prompt"); sink="$tmp/out" ;;
     codex) cmd=(codex exec --ephemeral --skip-git-repo-check -s read-only -m gpt-6-luna -c model_reasoning_effort=low -o "$tmp/out" "$prompt"); sink=/dev/null ;;
 esac
 (
@@ -104,7 +105,7 @@ esac
     wait "$pid"; rc=$?
     kill "$watcher" 2>/dev/null
     exit "$rc"
-) 2>/dev/null || exit 0
+) || exit 0
 
 text=$(grep -m1 '[^[:space:]]' "$tmp/out" 2>/dev/null | sed -e 's/^[[:space:]"'\''`*]*//' -e 's/[[:space:]"'\''`*.]*$//')
 [[ -n "$text" ]] || exit 0

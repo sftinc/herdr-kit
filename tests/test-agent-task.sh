@@ -63,7 +63,7 @@ claude_reply "$log" "Found it: the token is null. Want me to fix it?"
 claude_prompt "$log" "yes fix it" "2026-10-11T10:01:02.345Z"
 run_task "$t" working; rc=$?
 check "exit 0" '[[ $rc == 0 ]]'
-check "claude called once, with haiku" '[[ $(calls "$t" claude) == 1 ]] && grep -q -- "^-p --model haiku --no-session-persistence " "$t/.stub-claude"'
+check "claude called once, with haiku" '[[ $(calls "$t" claude) == 1 ]] && grep -q -- "^-p --model haiku --no-session-persistence --tools  --setting-sources  --strict-mcp-config --disable-slash-commands " "$t/.stub-claude"'
 check "the prompt has the new prompt, an earlier one and the last reply" 'grep -q "yes fix it" "$t/.stub-claude" && grep -q "login page throws" "$t/.stub-claude" && grep -q "token is null" "$t/.stub-claude"'
 check "reports the cleaned answer with the prompt time as seq" 'grep -qx "pane report-metadata w1:p1 --source herdr-kit:agent-task --seq 1791712862345 --token task=Fixing login bug" "$t/.stub-log"'
 
@@ -103,12 +103,18 @@ jq -nc '{type:"user", isMeta:true, message:{content:"Caveat: meta text"}, timest
 jq -nc '{type:"user", message:{content:"<command-name>/clear</command-name>"}, timestamp:"2026-10-11T10:00:01.000Z"}' >> "$log"
 jq -nc '{type:"user", isCompactSummary:true, message:{content:"This session is being continued"}, timestamp:"2026-10-11T10:00:01.500Z"}' >> "$log"
 jq -nc '{type:"user", message:{content:"<task-notification>agent finished</task-notification>"}, timestamp:"2026-10-11T10:00:01.700Z"}' >> "$log"
+jq -nc '{type:"user", message:{content:[{type:"text", text:"[Request interrupted by user for tool use]"}]}, timestamp:"2026-10-11T10:00:01.710Z"}' >> "$log"
+jq -nc '{type:"user", message:{content:"[Request interrupted by user]"}, timestamp:"2026-10-11T10:00:01.720Z"}' >> "$log"
+jq -nc '{type:"user", message:{content:"<bash-input>ls bashmarker</bash-input>"}, timestamp:"2026-10-11T10:00:01.730Z"}' >> "$log"
+jq -nc '{type:"user", message:{content:"<bash-stdout>stdoutmarker</bash-stdout>"}, timestamp:"2026-10-11T10:00:01.740Z"}' >> "$log"
+jq -nc '{type:"user", message:{content:"<task-id>idmarker</task-id>"}, timestamp:"2026-10-11T10:00:01.750Z"}' >> "$log"
+jq -nc '{type:"attachment", attachment:{type:"queued_command", prompt:"<task-notification>queuedmarker</task-notification>", commandMode:"prompt"}, timestamp:"2026-10-11T10:00:01.760Z"}' >> "$log"
 claude_prompt "$log" "<Button> is broken on mobile" "2026-10-11T10:00:02.000Z"
 jq -nc '{type:"user", message:{content:[{type:"image", source:{}}, {type:"text", text:"see this screenshot"}]}, timestamp:"2026-10-11T10:00:03.000Z"}' >> "$log"
 jq -nc '{type:"user", message:{content:[{type:"tool_result", content:"tool output here"}]}, timestamp:"2026-10-11T10:00:04.000Z"}' >> "$log"
 printf '{"type":"user","message":{"content":"half a li' >> "$log"
 run_task "$t" working
-check "meta, slash command, compact summary, notification and tool result left out" '! grep -q -e "Caveat: meta" -e "command-name" -e "being continued" -e "agent finished" -e "tool output here" "$t/.stub-claude"'
+check "meta, slash command, compact summary, notification and tool result left out" '! grep -q -e "Caveat: meta" -e "command-name" -e "being continued" -e "agent finished" -e "tool output here" -e "Request interrupted" -e bashmarker -e stdoutmarker -e idmarker -e queuedmarker "$t/.stub-claude"'
 check "a prompt starting with < is kept" 'grep -q "<Button> is broken" "$t/.stub-claude"'
 check "image + text: its text is the newest prompt" 'grep -A1 "^Newest prompt" "$t/.stub-claude" | grep -q "see this screenshot"'
 check "a half-written last line doesn't stop it" '[[ $(reports "$t") == 1 ]]'
@@ -180,6 +186,20 @@ check "no HERDR_ variables reached codex" '! grep -q "^HERDR_" "$t/.stub-codex"'
 echo "15. The same Codex prompt is not summarised twice"
 run_task "$t" idle
 check "codex still called once" '[[ $(calls "$t" codex) == 1 ]]'
+
+echo "16. Nothing is left holding herdr's output pipe"
+t=$(new_home claude S1); log=$(claude_log "$t" S1)
+claude_prompt "$log" "fix it" "2026-10-11T10:00:00.000Z"
+start=$SECONDS; run_task "$t" working HERDR_KIT_TASK_LIMIT=8 | cat; took=$((SECONDS - start))
+check "the pipe closes in time, not after the limit" '[[ $took -le 3 && $(reports "$t") == 1 ]]'
+
+echo "17. A session id that appears a moment late is still read"
+t=$(new_home claude S1); log=$(claude_log "$t" S1)
+claude_prompt "$log" "fix it" "2026-10-11T10:00:00.000Z"
+jq -n '{result:{pane:{agent:"claude", agent_session:null, tokens:{}}}}' > "$t/.stub-pane"
+( sleep 1; pane_runs "$t" claude S1 ) &
+run_task "$t" working; wait
+check "reported" '[[ $(reports "$t") == 1 ]]'
 
 echo
 if ((fails)); then echo "$fails check(s) failed"; exit 1; fi
