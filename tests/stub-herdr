@@ -11,5 +11,7 @@ case "$1 $2" in
         for a in "$@"; do [[ "$prev" == --ref ]] && ref="$a"; prev="$a"; done
         printf '{"result":{"plugins":[{"plugin_id":"herdr-file-viewer","source":{"resolved_commit":"%s"}}]}}\n' "$ref" > "$HOME/.stub-plugins" ;;
     "plugin uninstall") rm -f "$HOME/.stub-plugins" ;;
+    "pane get") cat "$HOME/.stub-pane" ;;
+    "pane report-metadata") ;;
     *) exit 1 ;;
 esac
