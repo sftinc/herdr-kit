@@ -156,6 +156,31 @@ pane_runs "$t" claude S2
 claude_prompt "$(claude_log "$t" S2)" "write the docs" "2026-10-11T11:00:00.000Z"; run_task "$t" working
 check "both sessions summarised" '[[ $(calls "$t" claude) == 2 ]]'
 
+# codex_prompt <log> <text> <time> / codex_reply <log> <text>: append Codex log lines.
+codex_prompt() { jq -nc --arg t "$2" --arg ts "$3" '{timestamp:$ts, type:"response_item", payload:{type:"message", role:"user", content:[{type:"input_text", text:$t}]}}' >> "$1"; }
+codex_reply()  { jq -nc --arg t "$2" '{timestamp:"2026-10-11T09:00:00.000Z", type:"response_item", payload:{type:"message", role:"assistant", content:[{type:"output_text", text:$t}]}}' >> "$1"; }
+
+echo "14. A new Codex prompt is summarised with Codex"
+t=$(new_home codex T1); log="$t/.codex/sessions/2026/10/11/rollout-2026-10-11T10-00-00-T1.jsonl"
+jq -nc '{timestamp:"2026-10-11T10:00:00.000Z", type:"session_meta", payload:{id:"T1"}}' >> "$log"
+codex_prompt "$log" "<environment_context>
+  <cwd>/work</cwd>
+</environment_context>" "2026-10-11T10:00:00.100Z"
+codex_prompt "$log" "add a dark mode toggle" "2026-10-11T10:00:01.000Z"
+codex_reply "$log" "Added the toggle. Should I write tests?"
+codex_prompt "$log" "yes" "2026-10-11T10:00:30.500Z"
+run_task "$t" working
+check "codex called with gpt-6-luna" 'grep -q -- "^exec --ephemeral --skip-git-repo-check -s read-only -m gpt-6-luna -c model_reasoning_effort=low -o " "$t/.stub-codex"'
+check "claude not called" '[[ ! -e $t/.stub-claude ]]'
+check "environment_context left out" '! grep -q "environment_context" "$t/.stub-codex"'
+check "earlier prompt and reply sent" 'grep -q "dark mode toggle" "$t/.stub-codex" && grep -q "write tests" "$t/.stub-codex"'
+check "reports the answer from the -o file" 'grep -qx "pane report-metadata w1:p1 --source herdr-kit:agent-task --seq 1791712830500 --token task=Fixing login bug" "$t/.stub-log"'
+check "no HERDR_ variables reached codex" '! grep -q "^HERDR_" "$t/.stub-codex"'
+
+echo "15. The same Codex prompt is not summarised twice"
+run_task "$t" idle
+check "codex still called once" '[[ $(calls "$t" codex) == 1 ]]'
+
 echo
 if ((fails)); then echo "$fails check(s) failed"; exit 1; fi
 echo "all checks passed"
