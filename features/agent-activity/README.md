@@ -30,6 +30,9 @@ If you set `CLAUDE_CONFIG_DIR`, that folder is used instead of `~/.claude`.
 **herdr:** `config.toml` here is added to your herdr config as a marked block:
 
 ```toml
+[ui]
+sidebar_min_width = 28
+
 [ui.sidebar.agents]
 row_gap = 1
 rows = [
@@ -39,7 +42,9 @@ rows = [
 ]
 ```
 
-If your config already has its own `[ui.sidebar.agents]` section, setup can't add this block. It leaves your config alone and prints the lines so you can merge them by hand.
+`sidebar_min_width` keeps the sidebar wide enough for the task and tool lines; herdr otherwise sizes it to your workspace names.
+
+If your config already has its own `[ui]` or `[ui.sidebar.agents]` section, setup can't add this block. It leaves your config alone and prints the lines so you can merge them by hand.
 
 **herdr plugins:** `herdr-kit-agent-task` is linked from `~/.config/herdr/herdr-kit/agent-task/`.
 
