@@ -360,6 +360,17 @@ run_setup "$t" 'a\n' > "$t/out"
 check "still at its own commit" 'grep -q deadbeef "$t/.stub-plugins"'
 check "says it left it" 'grep -q "left as is" "$t/out"'
 
+echo "36. Lines an earlier kit version added (config.old) are recognised and replaced"
+t=$(new_home); c=$(conf_of "$t"); mkdir -p "$t/kit-copy"; cp -R "$KIT/setup.sh" "$KIT/plugins" "$KIT/features" "$t/kit-copy/"
+RUN_KIT="$t/kit-copy" run_setup "$t" 'a\n' > /dev/null
+sed -i '' 's|^description = "stack pane under its left neighbour / unstack"$|description = "old description"|' "$c"
+check "the old line is in the block" 'grep -qx "description = \"old description\"" "$c"'
+echo 'description = "old description"' > "$t/kit-copy/features/stack-pane/config.old"
+RUN_KIT="$t/kit-copy" run_setup "$t" 'a\n' > "$t/out"; rc=$?
+check "exit 0" '[[ $rc == 0 ]]'
+check "old line gone" '! grep -q "old description" "$c"'
+check "current line back, once" '[[ $(grep -c "^description = \"stack pane under its left neighbour / unstack\"$" "$c") == 1 ]]'
+
 echo
 if ((fails)); then echo "$fails check(s) failed"; exit 1; fi
 echo "all checks passed"

@@ -59,8 +59,8 @@ strip_blocks() {
             open = name; opened = NR
             flush(1)
             split("", ours); known = 0; header = 0
-            for (k = 1; k <= 2; k++) {
-                f = kit (k == 1 ? "/plugins/" : "/features/") open "/config.toml"
+            for (k = 1; k <= 4; k++) {   # config.toml, and config.old: lines earlier versions added
+                f = kit (k % 2 ? "/plugins/" : "/features/") open (k <= 2 ? "/config.toml" : "/config.old")
                 while ((getline l < f) > 0) { ours[l] = 1; known = 1 }
                 close(f)
             }
