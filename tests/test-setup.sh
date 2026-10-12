@@ -54,11 +54,11 @@ run_setup "$t" 'a\n' > "$t/out1"; rc=$?
 check "exit 0" '[[ $rc == 0 ]]'
 check "5 blocks" '[[ $(blocks "$c") == 5 ]]'
 check "herdr accepts the config" 'herdr_ok "$c"'
-check "stack-pane copied (a file, not a link)" 'is_copy "$t/.config/herdr/scripts/stack-pane.sh"'
+check "move-pane copied (a file, not a link)" 'is_copy "$t/.config/herdr/scripts/move-pane.sh"'
 check "hook copied" 'is_copy "$t/.claude/hooks/herdr-last-tool.sh"'
 check "pane-naming copied" 'is_copy "$t/.config/herdr/scripts/pane-naming.zsh"'
 check "new-agent copied (a file, not a link)" 'is_copy "$t/.config/herdr/scripts/new-agent.sh"'
-check "copies are executable where the repo's are" '[[ -x $t/.config/herdr/scripts/stack-pane.sh ]]'
+check "copies are executable where the repo's are" '[[ -x $t/.config/herdr/scripts/move-pane.sh ]]'
 check "zshrc sources the copy, not the repo" 'grep -qx "source \"\$HOME/.config/herdr/scripts/pane-naming.zsh\"" "$t/.zshrc"'
 check "hook entry once" '[[ $(hook_count "$t") == 1 ]]'
 check "zshrc sources pane-naming once" '[[ $(grep -c pane-naming.zsh "$t/.zshrc") == 1 ]]'
@@ -73,20 +73,20 @@ check "second All: config unchanged" 'cmp -s "$c" "$t/conf1"'
 check "second All: no new backups" '[[ $(baks "$t") == "$b1" ]]'
 check "second All: plugin not linked again" '[[ $(grep -c "^plugin link " "$t/.stub-log") == 1 ]] && grep -q "already done: herdr plugin herdr-kit-agent-task" "$t/out2"'
 
-echo "2. Customize: say no to agent-activity and stack-pane"
-run_setup "$t" "$(customize agent-activity stack-pane)" > "$t/out3"; rc=$?
+echo "2. Customize: say no to agent-activity and move-pane"
+run_setup "$t" "$(customize agent-activity move-pane)" > "$t/out3"; rc=$?
 check "exit 0" '[[ $rc == 0 ]]'
 check "3 blocks left" '[[ $(blocks "$c") == 3 ]]'
 check "agent-activity block gone" '! has_block "$c" agent-activity'
-check "stack-pane block gone" '! has_block "$c" stack-pane'
+check "move-pane block gone" '! has_block "$c" move-pane'
 check "keybindings block kept" 'has_block "$c" keybindings'
 check "hook copy gone" '[[ ! -e $t/.claude/hooks/herdr-last-tool.sh ]]'
 check "hook entry gone" '[[ $(hook_count "$t") == 0 ]]'
-check "stack-pane copy gone" '[[ ! -e $t/.config/herdr/scripts/stack-pane.sh ]]'
+check "move-pane copy gone" '[[ ! -e $t/.config/herdr/scripts/move-pane.sh ]]'
 check "agent-task plugin unlinked" 'grep -q "^plugin unlink herdr-kit-agent-task$" "$t/.stub-log" && [[ ! -e $t/.stub-links ]]'
 check "agent-task plugin folder gone" '[[ ! -e $(plugin_dir "$t") ]]'
 cp "$c" "$t/conf3"; b3=$(baks "$t")
-run_setup "$t" "$(customize agent-activity stack-pane)" > /dev/null
+run_setup "$t" "$(customize agent-activity move-pane)" > /dev/null
 check "same answers again: config unchanged" 'cmp -s "$c" "$t/conf3"'
 check "same answers again: no new backups" '[[ $(baks "$t") == "$b3" ]]'
 run_setup "$t" 'a\n' > /dev/null
@@ -101,7 +101,7 @@ run_setup "$t" 'a\n' > "$t/out"; rc=$?
 check "exit 1 (some lines not added)" '[[ $rc == 1 ]]'
 check "keybindings not added" '! has_block "$c" keybindings'
 check "agent-activity not added" '! has_block "$c" agent-activity'
-check "file-viewer and stack-pane added" 'has_block "$c" file-viewer && has_block "$c" stack-pane'
+check "file-viewer and move-pane added" 'has_block "$c" file-viewer && has_block "$c" move-pane'
 check "friend lines unchanged at the top" '[[ "$(head -c "$(wc -c < "$t/friend")" "$c")" == "$(cat "$t/friend")" ]]'
 check "herdr accepts the config" 'herdr_ok "$c"'
 check "tells them what to add by hand" 'grep -q "add these lines yourself" "$t/out"'
@@ -200,11 +200,11 @@ check "says it left it" 'grep -q "left as is" "$t/out"'
 echo "14. Your lines stay byte-for-byte (trailing blank lines too)"
 t=$(new_home); c=$(conf_of "$t"); mkdir -p "$(dirname "$c")"
 printf 'theme.name = "nord"\n\n\n' > "$c"; cp "$c" "$t/orig"
-run_setup "$t" "$(customize file-viewer agent-activity keybindings new-agent pane-naming stack-pane)" > /dev/null
+run_setup "$t" "$(customize file-viewer agent-activity keybindings new-agent pane-naming move-pane)" > /dev/null
 check "all n on a kit-free config: untouched" 'cmp -s "$c" "$t/orig"'
 check "all n: no backup made" '[[ $(baks "$t") == 0 ]]'
 run_setup "$t" 'a\n' > /dev/null
-run_setup "$t" "$(customize file-viewer agent-activity keybindings new-agent pane-naming stack-pane)" > /dev/null
+run_setup "$t" "$(customize file-viewer agent-activity keybindings new-agent pane-naming move-pane)" > /dev/null
 check "All then all n: back to the original bytes" 'cmp -s "$c" "$t/orig"'
 
 echo "15. pane-naming y/n cycles leave .zshrc as it was"
@@ -227,7 +227,7 @@ t=$(new_home); c=$(conf_of "$t"); touch "$t/.stub-fail-install"
 run_setup "$t" 'a\n' > "$t/out"; rc=$?
 check "exit 1" '[[ $rc == 1 ]]'
 check "no file-viewer block" '! has_block "$c" file-viewer'
-check "other blocks added" 'has_block "$c" stack-pane'
+check "other blocks added" 'has_block "$c" move-pane'
 
 echo "18. Damaged markers are reported before the questions, with the line"
 t=$(new_home); c=$(conf_of "$t"); mkdir -p "$(dirname "$c")"
@@ -247,7 +247,7 @@ echo "20. A config with Windows line endings"
 t=$(new_home); c=$(conf_of "$t")
 run_setup "$t" 'a\n' > /dev/null
 perl -pi -e 's/\n/\r\n/' "$c"
-run_setup "$t" "$(customize file-viewer agent-activity keybindings new-agent pane-naming stack-pane)" > /dev/null; rc=$?
+run_setup "$t" "$(customize file-viewer agent-activity keybindings new-agent pane-naming move-pane)" > /dev/null; rc=$?
 check "exit 0" '[[ $rc == 0 ]]'
 check "all blocks removed" '[[ $(grep -c "herdr-kit" "$c") == 0 ]]'
 
@@ -272,7 +272,7 @@ printf 'a = 1\r\n\r\n   \n' > "$c"; cp "$c" "$t/orig"
 run_setup "$t" 'a\n' > /dev/null; cp "$c" "$t/after1"; b1=$(baks "$t")
 run_setup "$t" 'a\n' > /dev/null
 check "second All: unchanged" 'cmp -s "$c" "$t/after1" && [[ $(baks "$t") == "$b1" ]]'
-run_setup "$t" "$(customize file-viewer agent-activity keybindings new-agent pane-naming stack-pane)" > /dev/null
+run_setup "$t" "$(customize file-viewer agent-activity keybindings new-agent pane-naming move-pane)" > /dev/null
 check "all n: original bytes" 'cmp -s "$c" "$t/orig"'
 
 echo "24. No 'kept' claims when setup stops"
@@ -317,26 +317,26 @@ t=$(new_home); mkdir -p "$t/kit-copy"; cp -R "$KIT/setup.sh" "$KIT/plugins" "$KI
 RUN_KIT="$t/kit-copy" run_setup "$t" 'a\n' > /dev/null
 rm -rf "$t/kit-copy"
 check "hook still there" 'is_copy "$t/.claude/hooks/herdr-last-tool.sh"'
-check "stack-pane still there" 'is_copy "$t/.config/herdr/scripts/stack-pane.sh"'
+check "move-pane still there" 'is_copy "$t/.config/herdr/scripts/move-pane.sh"'
 check "agent-task plugin still there" 'is_copy "$(plugin_dir "$t")/agent-task.sh"'
 check ".zshrc loads without errors" '[[ -z "$(HOME=$t zsh -c "source $t/.zshrc" 2>&1)" ]]'
 
 echo "30. Your own file at a target is backed up, and never removed"
-t=$(new_home); mkdir -p "$t/.config/herdr/scripts"; printf 'my own\n' > "$t/.config/herdr/scripts/stack-pane.sh"
+t=$(new_home); mkdir -p "$t/.config/herdr/scripts"; printf 'my own\n' > "$t/.config/herdr/scripts/move-pane.sh"
 run_setup "$t" 'a\n' > /dev/null
-check "replaced by the kit copy" 'is_copy "$t/.config/herdr/scripts/stack-pane.sh"'
-check "yours is in a backup" 'grep -q "my own" "$t"/.config/herdr/scripts/stack-pane.sh.bak-*'
-printf 'my own again\n' > "$t/.config/herdr/scripts/stack-pane.sh"
-run_setup "$t" "$(customize stack-pane)" > /dev/null
-check "'n' leaves a file without the marker" 'grep -q "my own again" "$t/.config/herdr/scripts/stack-pane.sh"'
+check "replaced by the kit copy" 'is_copy "$t/.config/herdr/scripts/move-pane.sh"'
+check "yours is in a backup" 'grep -q "my own" "$t"/.config/herdr/scripts/move-pane.sh.bak-*'
+printf 'my own again\n' > "$t/.config/herdr/scripts/move-pane.sh"
+run_setup "$t" "$(customize move-pane)" > /dev/null
+check "'n' leaves a file without the marker" 'grep -q "my own again" "$t/.config/herdr/scripts/move-pane.sh"'
 
 echo "31. An updated script in the repo replaces the old copy on the next run"
 t=$(new_home); mkdir -p "$t/kit-copy"; cp -R "$KIT/setup.sh" "$KIT/plugins" "$KIT/features" "$t/kit-copy/"
 RUN_KIT="$t/kit-copy" run_setup "$t" 'a\n' > /dev/null
-echo "# new line" >> "$t/kit-copy/features/stack-pane/stack-pane.sh"
+echo "# new line" >> "$t/kit-copy/features/move-pane/move-pane.sh"
 b=$(baks "$t")
 RUN_KIT="$t/kit-copy" run_setup "$t" 'a\n' > /dev/null
-check "copy updated" 'grep -q "^# new line" "$t/.config/herdr/scripts/stack-pane.sh"'
+check "copy updated" 'grep -q "^# new line" "$t/.config/herdr/scripts/move-pane.sh"'
 check "no backup of our own old copy" '[[ $(baks "$t") == "$b" ]]'
 
 old=$(head -n 1 "$KIT/plugins/file-viewer/pins")
@@ -374,13 +374,13 @@ check "says it left it" 'grep -q "left as is" "$t/out"'
 echo "36. Lines an earlier kit version added (config.old) are recognised and replaced"
 t=$(new_home); c=$(conf_of "$t"); mkdir -p "$t/kit-copy"; cp -R "$KIT/setup.sh" "$KIT/plugins" "$KIT/features" "$t/kit-copy/"
 RUN_KIT="$t/kit-copy" run_setup "$t" 'a\n' > /dev/null
-sed -i '' 's|^description = "stack pane under its left neighbour / unstack"$|description = "old description"|' "$c"
+sed -i '' 's|^description = "move pane one column left"$|description = "old description"|' "$c"
 check "the old line is in the block" 'grep -qx "description = \"old description\"" "$c"'
-echo 'description = "old description"' > "$t/kit-copy/features/stack-pane/config.old"
+echo 'description = "old description"' > "$t/kit-copy/features/move-pane/config.old"
 RUN_KIT="$t/kit-copy" run_setup "$t" 'a\n' > "$t/out"; rc=$?
 check "exit 0" '[[ $rc == 0 ]]'
 check "old line gone" '! grep -q "old description" "$c"'
-check "current line back, once" '[[ $(grep -c "^description = \"stack pane under its left neighbour / unstack\"$" "$c") == 1 ]]'
+check "current line back, once" '[[ $(grep -c "^description = \"move pane one column left\"$" "$c") == 1 ]]'
 
 echo "37. An agent-activity block from before the task line is upgraded"
 t=$(new_home); c=$(conf_of "$t"); mkdir -p "$(dirname "$c")"

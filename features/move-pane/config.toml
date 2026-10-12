@@ -1,0 +1,11 @@
+[[keys.command]]
+key = "prefix+m"
+type = "shell"
+command = "$HOME/.config/herdr/scripts/move-pane.sh left"
+description = "move pane one column left"
+
+[[keys.command]]
+key = "prefix+shift+m"
+type = "shell"
+command = "$HOME/.config/herdr/scripts/move-pane.sh right"
+description = "move pane one column right"

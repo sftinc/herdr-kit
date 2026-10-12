@@ -23,9 +23,9 @@ herdr-kit: install everything? [A]ll / [c]ustomize:
     file-viewer     Git-aware file viewer: prefix+f opens it in a split, prefix+shift+f in a tab [y/n]:
     agent-activity  Agents sidebar shows what each agent is working on now and the tool it's running [y/n]:
     keybindings     prefix+] / prefix+[ switch spaces, prefix+} / prefix+{ switch agents [y/n]:
+    move-pane       prefix+m moves a pane one column left, prefix+shift+m right, stacking it under the column it lands in [y/n]:
     new-agent       prefix+a opens a new Claude pane to the right, prefix+shift+a below [y/n]:
     pane-naming     New panes are named after the folder they open in [y/n]:
-    stack-pane      prefix+m stacks a pane under its left neighbour, or unstacks it [y/n]:
   ```
 
   `y` installs or updates an item. `n` removes it if setup installed it before; things you set up yourself (for example a file viewer you installed at another version) are left alone. Run `./setup.sh` again any time to change your mind.
@@ -39,9 +39,9 @@ After setup, press prefix+shift+r in herdr so new keybindings are picked up. (`p
 | file-viewer | Git-aware file viewer: prefix+f opens it in a split, prefix+shift+f in a tab | [plugins/file-viewer](plugins/file-viewer/README.md) |
 | agent-activity | Agents sidebar shows what each agent is working on now and the tool it's running (Claude Code, Codex) | [features/agent-activity](features/agent-activity/README.md) |
 | keybindings | prefix+] / prefix+[ switch spaces, prefix+} / prefix+{ switch agents | [features/keybindings](features/keybindings/README.md) |
+| move-pane | prefix+m moves a pane one column left, prefix+shift+m right, stacking it under the column it lands in | [features/move-pane](features/move-pane/README.md) |
 | new-agent | prefix+a opens a new Claude pane to the right, prefix+shift+a below | [features/new-agent](features/new-agent/README.md) |
 | pane-naming | New panes are named after the folder they open in | [features/pane-naming](features/pane-naming/README.md) |
-| stack-pane | prefix+m stacks a pane under its left neighbour, or unstacks it | [features/stack-pane](features/stack-pane/README.md) |
 
 All the keys are listed in [KEYBINDINGS.md](KEYBINDINGS.md). The Mac app is separate: see [app/README.md](app/README.md).
 
@@ -60,11 +60,11 @@ herdr's own agent integrations (for Claude Code, Codex and others) aren't part o
 - **Your herdr config** (`~/.config/herdr/config.toml`, or wherever `HERDR_CONFIG_PATH` / `XDG_CONFIG_HOME` points) gets one marked block per chosen item:
 
   ```toml
-  # >>> herdr-kit: stack-pane >>>
+  # >>> herdr-kit: move-pane >>>
   [[keys.command]]
   key = "prefix+m"
   ...
-  # <<< herdr-kit: stack-pane <<<
+  # <<< herdr-kit: move-pane <<<
   ```
 
   Lines outside these markers are never changed (the only exception: if your file doesn't end with a newline, setup adds one). Before writing, setup runs `herdr config check` on the result. If an item's lines would clash with yours (for example, you already have a `[keys]` section), that item's block is left out and setup shows herdr's message and the lines so you can merge them by hand. If an item's install fails (say, the file viewer can't download), its lines aren't added either.

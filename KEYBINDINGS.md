@@ -12,7 +12,8 @@ Every key the kit adds, and which item it comes from. `prefix` is herdr's prefix
 | prefix+shift+f | file viewer in a tab | [file-viewer](plugins/file-viewer/README.md) |
 | prefix+a | new Claude pane to the right | [new-agent](features/new-agent/README.md) |
 | prefix+shift+a | new Claude pane below | [new-agent](features/new-agent/README.md) |
-| prefix+m | stack / unstack the focused pane | [stack-pane](features/stack-pane/README.md) |
+| prefix+m | move the focused pane one column left | [move-pane](features/move-pane/README.md) |
+| prefix+shift+m | move the focused pane one column right | [move-pane](features/move-pane/README.md) |
 
 ## Notes
 
