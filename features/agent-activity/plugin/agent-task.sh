@@ -6,7 +6,7 @@ set -uo pipefail
 exec >/dev/null 2>&1    # never prints; a leftover child holding herdr's pipes would keep the plugin slot busy
 
 PROMPTS=6                            # recent prompts sent to the summariser, newest included
-REPLY_CHARS=1500                     # how much of the agent's last reply is sent (its end)
+REPLY_CHARS=3000                     # how much of the agent's messages is sent (their end)
 LIMIT=${HERDR_KIT_TASK_LIMIT:-30}    # seconds before the summary call is given up
 PATH="$PATH:$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin"   # herdr may be started with a bare PATH
 herdr=${HERDR_BIN_PATH:-herdr}
@@ -14,8 +14,8 @@ pane=${HERDR_PANE_ID:-}
 [[ -n "$pane" ]] || exit 0
 
 case "$(jq -r '.data.agent_status // empty' <<<"${HERDR_PLUGIN_EVENT_JSON:-}" 2>/dev/null)" in
-    working) tries=4 ;;    # the new prompt, or a new session's log, may not be written yet
-    idle|done) tries=1 ;;  # end of a turn: picks up a prompt queued mid-turn, which fires no event
+    working) type=start; tries=4 ;;  # the new prompt, or a new session's log, may not be written yet
+    idle|done) type=end; tries=1 ;;  # end of a run: re-labels from what was done, queued prompts included
     *) exit 0 ;;
 esac
 state="${HERDR_PLUGIN_STATE_DIR:-${TMPDIR:-/tmp}}/${pane//[!A-Za-z0-9_-]/_}"
@@ -56,7 +56,7 @@ def text_of($type): [.[]? | select(.type == $type) | .text | select(wrapper | no
 | select($u | length > 0)
 | { key: ($u[-1].line | tostring), seq: ($u[-1].ts | ms), new: ($u[-1].user | .[0:2000]),
     earlier: [$u[:-1][-($n - 1):][] | .user],
-    reply: (([.[] | select(.agent)] | last | .agent // "") | .[-$c:]) }'
+    reply: ([.[] | select(.agent) | .agent] | join("\n\n") | .[-$c:]) }'
 
 ctx=""
 for ((i = 1; i <= tries; i++)); do
@@ -71,22 +71,29 @@ for ((i = 1; i <= tries; i++)); do
     ctx=$(jq -nR --arg agent "$agent" --argjson n "$PROMPTS" --argjson c "$REPLY_CHARS" "$CONTEXT" "$log" 2>/dev/null)
     [[ -n "$ctx" ]] || continue
     key="$session:$(jq -r .key <<<"$ctx")"
-    [[ "$key" == "$(cat "$state" 2>/dev/null)" ]] || break
-    ctx=""   # already summarised; on "working" the new prompt may still be on its way
+    # A prompt is labelled once at its start and once at its end; after its end there's nothing left to start.
+    case "$(cat "$state" 2>/dev/null)" in "$key:$type"|"$key:end") ;; *) break ;; esac
+    ctx=""   # already done; on "working" the new prompt may still be on its way
 done
 [[ -n "$ctx" ]] || exit 0
-mkdir -p "$(dirname "$state")" && printf '%s\n' "$key" > "$state"   # before the slow call: a second event for this prompt stops above
+mkdir -p "$(dirname "$state")" && printf '%s\n' "$key:$type" > "$state"   # before the slow call: a second event for this prompt stops above
 
 current=$(jq -r '.result.pane.tokens.task // empty' <<<"$info")
-prompt=$(jq -r --arg cur "${current:-(none)}" '
+prompt=$(jq -r --arg cur "${current:-(none)}" --arg type "$type" '
     "You write the label a sidebar shows for what a coding agent is working on.\n\n"
     + "Current label: \($cur)\n\n"
     + "Earlier prompts from the user, oldest first:\n"
     + ([.earlier[] | "- " + (gsub("\\s+"; " ") | .[0:300])] | join("\n")) + "\n\n"
-    + "Last reply from the agent (its end):\n\(.reply)\n\n"
     + "Newest prompt from the user:\n\(.new)\n\n"
-    + "Reply with only the new label: 3 to 6 words starting with a verb, no quotes. "
-    + "If the newest prompt does not change the task (a yes, a thanks, a small follow-up), reply with the current label."' <<<"$ctx")
+    + "The agent'\''s latest messages, oldest first (their end):\n\(.reply)\n\n"
+    + (if $type == "start" then
+         "The agent is starting on the newest prompt; its messages above are from before it. "
+         + "If the newest prompt does not change the task (a yes, a thanks, a small follow-up), keep the current label. "
+       else
+         "The agent has just finished its work on these prompts. "
+         + "If the current label still fits what it did, keep it; otherwise write one that does. "
+       end)
+    + "Reply with only the label: 3 to 6 words starting with a verb, no quotes."' <<<"$ctx")
 
 tmp=$(mktemp -d) || exit 0
 trap 'rm -rf "$tmp"' EXIT
@@ -109,5 +116,7 @@ esac
 
 text=$(grep -m1 '[^[:space:]]' "$tmp/out" 2>/dev/null | sed -e 's/^[[:space:]"'\''`*]*//' -e 's/[[:space:]"'\''`*.]*$//')
 [[ -n "$text" ]] || exit 0
-"$herdr" pane report-metadata "$pane" --source herdr-kit:agent-task --seq "$(jq -r .seq <<<"$ctx")" --token "task=$text" >/dev/null 2>&1
+seq=$(jq -r .seq <<<"$ctx")
+[[ "$type" == start ]] || seq=$((seq + 1))   # herdr drops a report whose seq isn't higher than the last
+"$herdr" pane report-metadata "$pane" --source herdr-kit:agent-task --seq "$seq" --token "task=$text" >/dev/null 2>&1
 exit 0

@@ -67,27 +67,42 @@ check "claude called once, with haiku" '[[ $(calls "$t" claude) == 1 ]] && grep 
 check "the prompt has the new prompt, an earlier one and the last reply" 'grep -q "yes fix it" "$t/.stub-claude" && grep -q "login page throws" "$t/.stub-claude" && grep -q "token is null" "$t/.stub-claude"'
 check "reports the cleaned answer with the prompt time as seq" 'grep -qx "pane report-metadata w1:p1 --source herdr-kit:agent-task --seq 1791712862345 --token task=Fixing login bug" "$t/.stub-log"'
 
-echo "2. The same prompt is not summarised twice"
-run_task "$t" working; run_task "$t" idle; run_task "$t" done
-check "claude still called once" '[[ $(calls "$t" claude) == 1 ]]'
-check "still one report" '[[ $(reports "$t") == 1 ]]'
+echo "2. A prompt is labelled once at its start and once at its end"
+run_task "$t" working
+check "a second working event: no new call" '[[ $(calls "$t" claude) == 1 ]]'
+check "the start prompt says the agent is starting" 'grep -q "The agent is starting on the newest prompt" "$t/.stub-claude"'
+claude_reply "$log" "Fixed: the token is now refreshed before submit."
+run_task "$t" idle; run_task "$t" done; run_task "$t" working
+check "claude called once more, at the end" '[[ $(calls "$t" claude) == 2 ]]'
+check "the end prompt says the agent finished and has its reply" 'sed -n "/^---$/,\$p" "$t/.stub-claude" | grep -q "has just finished" && grep -q "token is now refreshed" "$t/.stub-claude"'
+check "reported with the prompt time + 1, so herdr takes it over the start label" 'grep -q -- "--seq 1791712862346 " "$t/.stub-log" && [[ $(reports "$t") == 2 ]]'
 
-echo "3. A prompt queued mid-turn is summarised at the end of the turn"
+echo "3. A prompt queued mid-turn is labelled at the end of the turn"
 jq -nc '{type:"attachment", attachment:{type:"queued_command", prompt:"also update the README", commandMode:"prompt"}, timestamp:"2026-10-11T10:02:00.000Z"}' >> "$log"
 run_task "$t" done
-check "claude called again" '[[ $(calls "$t" claude) == 2 ]]'
+check "claude called again" '[[ $(calls "$t" claude) == 3 ]]'
 check "the queued prompt was sent" 'grep -q "also update the README" "$t/.stub-claude"'
-check "reported with the queued prompt time" 'grep -q -- "--seq 1791712920000 " "$t/.stub-log"'
+check "reported with the queued prompt time + 1" 'grep -q -- "--seq 1791712920001 " "$t/.stub-log"'
 
 echo "4. The same words again are a new prompt"
 claude_prompt "$log" "continue" "2026-10-11T10:03:00.000Z"; run_task "$t" working
 claude_prompt "$log" "continue" "2026-10-11T10:04:00.000Z"; run_task "$t" working
-check "both summarised" '[[ $(calls "$t" claude) == 4 ]]'
+check "both summarised" '[[ $(calls "$t" claude) == 5 ]]'
 
-echo "5. The summary call runs without herdr's environment"
+echo "5. The agent's messages are sent together, up to their last 3000 characters"
+t=$(new_home claude S1); log=$(claude_log "$t" S1)
+claude_prompt "$log" "fix it" "2026-10-11T10:00:00.000Z"
+claude_reply "$log" "oldmarker $(printf '%3000s' x)"
+claude_reply "$log" "Checking the parser."
+claude_reply "$log" "Done: parser fixed."
+run_task "$t" done
+check "every recent message is sent" 'grep -q "Checking the parser" "$t/.stub-claude" && grep -q "parser fixed" "$t/.stub-claude"'
+check "text beyond the limit is left out" '! grep -q oldmarker "$t/.stub-claude"'
+
+echo "6. The summary call runs without herdr's environment"
 check "no HERDR_ variables reached claude" '! grep -q "^HERDR_" "$t/.stub-claude"'
 
-echo "6. Other statuses and other agents do nothing"
+echo "7. Other statuses and other agents do nothing"
 t=$(new_home claude S1); log=$(claude_log "$t" S1)
 claude_prompt "$log" "fix it" "2026-10-11T10:00:00.000Z"
 run_task "$t" blocked; run_task "$t" unknown
@@ -97,7 +112,7 @@ check "another agent: no call" '[[ $(calls "$t" claude) == 0 ]]'
 echo '{"result":{"pane":{"agent":null,"tokens":{}}}}' > "$t/.stub-pane"; run_task "$t" working
 check "no agent: no call" '[[ $(calls "$t" claude) == 0 ]]'
 
-echo "7. Only real prompts are read"
+echo "8. Only real prompts are read"
 t=$(new_home claude S1); log=$(claude_log "$t" S1)
 jq -nc '{type:"user", isMeta:true, message:{content:"Caveat: meta text"}, timestamp:"2026-10-11T10:00:00.000Z"}' >> "$log"
 jq -nc '{type:"user", message:{content:"<command-name>/clear</command-name>"}, timestamp:"2026-10-11T10:00:01.000Z"}' >> "$log"
@@ -119,20 +134,20 @@ check "a prompt starting with < is kept" 'grep -q "<Button> is broken" "$t/.stub
 check "image + text: its text is the newest prompt" 'grep -A1 "^Newest prompt" "$t/.stub-claude" | grep -q "see this screenshot"'
 check "a half-written last line doesn't stop it" '[[ $(reports "$t") == 1 ]]'
 
-echo "8. A summary call that hangs is given up"
+echo "9. A summary call that hangs is given up"
 t=$(new_home claude S1); log=$(claude_log "$t" S1)
 claude_prompt "$log" "fix it" "2026-10-11T10:00:00.000Z"; touch "$t/.stub-hang"
 start=$SECONDS; run_task "$t" working; took=$((SECONDS - start))
 check "returns soon after the limit" '[[ $took -le 6 ]]'
 check "nothing reported" '[[ $(reports "$t") == 0 ]]'
 
-echo "9. A log that appears a moment late is still read"
+echo "10. A log that appears a moment late is still read"
 t=$(new_home claude S1); log=$(claude_log "$t" S1)
 ( sleep 1; claude_prompt "$log" "start the migration" "2026-10-11T10:00:00.000Z" ) &
 run_task "$t" working; wait
 check "reported" '[[ $(reports "$t") == 1 ]]'
 
-echo "10. An empty or failed answer leaves the old line"
+echo "11. An empty or failed answer leaves the old line"
 t=$(new_home claude S1); log=$(claude_log "$t" S1)
 claude_prompt "$log" "fix it" "2026-10-11T10:00:00.000Z"; : > "$t/.stub-answer"
 run_task "$t" working
@@ -141,21 +156,21 @@ claude_prompt "$log" "fix it again" "2026-10-11T10:01:00.000Z"; touch "$t/.stub-
 run_task "$t" working > "$t/out" 2>&1; rc=$?
 check "failed call: exit 0, no output, nothing reported" '[[ $rc == 0 && ! -s $t/out && $(reports "$t") == 0 ]]'
 
-echo "11. Only the first line of the answer is used, without formatting"
+echo "12. Only the first line of the answer is used, without formatting"
 t=$(new_home claude S1); log=$(claude_log "$t" S1)
 claude_prompt "$log" "fix it" "2026-10-11T10:00:00.000Z"
 printf '\n**Fixing login bug.**\nI kept it short.\n' > "$t/.stub-answer"
 run_task "$t" working
 check "task=Fixing login bug" 'grep -q -- "--token task=Fixing login bug$" "$t/.stub-log"'
 
-echo "12. The current label is passed along"
+echo "13. The current label is passed along"
 t=$(new_home claude S1); log=$(claude_log "$t" S1)
 claude_prompt "$log" "thanks" "2026-10-11T10:00:00.000Z"
 jq -n '{result:{pane:{agent:"claude", agent_session:{value:"S1"}, tokens:{task:"Fixing login bug"}}}}' > "$t/.stub-pane"
 run_task "$t" working
 check "prompt includes the current label" 'grep -q "^Current label: Fixing login bug$" "$t/.stub-claude"'
 
-echo "13. A new session in the same pane is summarised even at the same log line"
+echo "14. A new session in the same pane is summarised even at the same log line"
 t=$(new_home claude S1)
 claude_prompt "$(claude_log "$t" S1)" "fix it" "2026-10-11T10:00:00.000Z"; run_task "$t" working
 pane_runs "$t" claude S2
@@ -166,7 +181,7 @@ check "both sessions summarised" '[[ $(calls "$t" claude) == 2 ]]'
 codex_prompt() { jq -nc --arg t "$2" --arg ts "$3" '{timestamp:$ts, type:"response_item", payload:{type:"message", role:"user", content:[{type:"input_text", text:$t}]}}' >> "$1"; }
 codex_reply()  { jq -nc --arg t "$2" '{timestamp:"2026-10-11T09:00:00.000Z", type:"response_item", payload:{type:"message", role:"assistant", content:[{type:"output_text", text:$t}]}}' >> "$1"; }
 
-echo "14. A new Codex prompt is summarised with Codex"
+echo "15. A new Codex prompt is summarised with Codex"
 t=$(new_home codex T1); log="$t/.codex/sessions/2026/10/11/rollout-2026-10-11T10-00-00-T1.jsonl"
 jq -nc '{timestamp:"2026-10-11T10:00:00.000Z", type:"session_meta", payload:{id:"T1"}}' >> "$log"
 codex_prompt "$log" "<environment_context>
@@ -183,17 +198,17 @@ check "earlier prompt and reply sent" 'grep -q "dark mode toggle" "$t/.stub-code
 check "reports the answer from the -o file" 'grep -qx "pane report-metadata w1:p1 --source herdr-kit:agent-task --seq 1791712830500 --token task=Fixing login bug" "$t/.stub-log"'
 check "no HERDR_ variables reached codex" '! grep -q "^HERDR_" "$t/.stub-codex"'
 
-echo "15. The same Codex prompt is not summarised twice"
-run_task "$t" idle
-check "codex still called once" '[[ $(calls "$t" codex) == 1 ]]'
+echo "16. A Codex prompt is labelled once at its start and once at its end"
+run_task "$t" working; run_task "$t" idle; run_task "$t" done
+check "codex called twice" '[[ $(calls "$t" codex) == 2 ]]'
 
-echo "16. Nothing is left holding herdr's output pipe"
+echo "17. Nothing is left holding herdr's output pipe"
 t=$(new_home claude S1); log=$(claude_log "$t" S1)
 claude_prompt "$log" "fix it" "2026-10-11T10:00:00.000Z"
 start=$SECONDS; run_task "$t" working HERDR_KIT_TASK_LIMIT=8 | cat; took=$((SECONDS - start))
 check "the pipe closes in time, not after the limit" '[[ $took -le 3 && $(reports "$t") == 1 ]]'
 
-echo "17. A session id that appears a moment late is still read"
+echo "18. A session id that appears a moment late is still read"
 t=$(new_home claude S1); log=$(claude_log "$t" S1)
 claude_prompt "$log" "fix it" "2026-10-11T10:00:00.000Z"
 jq -n '{result:{pane:{agent:"claude", agent_session:null, tokens:{}}}}' > "$t/.stub-pane"
