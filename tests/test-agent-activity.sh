@@ -1,6 +1,6 @@
 #!/bin/bash
-# Tests features/agent-activity/plugin/agent-task.sh with sample session logs, the herdr stand-in
-# (tests/stub-herdr) and stand-in claude/codex commands. Nothing reaches your real herdr or agents.
+# Tests the agent-activity herdr plugin: agent-task.sh with sample session logs, and pane-name.sh, using the herdr
+# stand-in (tests/stub-herdr) and stand-in claude/codex commands. Nothing reaches your real herdr or agents.
 set -uo pipefail
 KIT="$(CDPATH= cd "$(dirname "$0")/.." && pwd)"
 SCRIPT="$KIT/features/agent-activity/plugin/agent-task.sh"
@@ -65,7 +65,7 @@ run_task "$t" working; rc=$?
 check "exit 0" '[[ $rc == 0 ]]'
 check "claude called once, with haiku" '[[ $(calls "$t" claude) == 1 ]] && grep -q -- "^-p --model haiku --no-session-persistence --tools  --setting-sources  --strict-mcp-config --disable-slash-commands " "$t/.stub-claude"'
 check "the prompt has the new prompt, an earlier one and the last reply" 'grep -q "yes fix it" "$t/.stub-claude" && grep -q "login page throws" "$t/.stub-claude" && grep -q "token is null" "$t/.stub-claude"'
-check "reports the cleaned answer with the prompt time as seq" 'grep -qx "pane report-metadata w1:p1 --source herdr-kit:agent-task --seq 1791712862345 --token task=Fixing login bug" "$t/.stub-log"'
+check "reports the cleaned answer as task and title (for this agent only), with the prompt time as seq" 'grep -qx "pane report-metadata w1:p1 --source herdr-kit:agent-task --seq 1791712862345 --agent claude --title Fixing login bug --token task=Fixing login bug" "$t/.stub-log"'
 
 echo "2. A prompt is labelled once at its start and once at its end"
 run_task "$t" working
@@ -195,7 +195,7 @@ check "codex called with gpt-6-luna" 'grep -q -- "^exec --ephemeral --skip-git-r
 check "claude not called" '[[ ! -e $t/.stub-claude ]]'
 check "environment_context left out" '! grep -q "environment_context" "$t/.stub-codex"'
 check "earlier prompt and reply sent" 'grep -q "dark mode toggle" "$t/.stub-codex" && grep -q "write tests" "$t/.stub-codex"'
-check "reports the answer from the -o file" 'grep -qx "pane report-metadata w1:p1 --source herdr-kit:agent-task --seq 1791712830500 --token task=Fixing login bug" "$t/.stub-log"'
+check "reports the answer from the -o file" 'grep -qx "pane report-metadata w1:p1 --source herdr-kit:agent-task --seq 1791712830500 --agent codex --title Fixing login bug --token task=Fixing login bug" "$t/.stub-log"'
 check "no HERDR_ variables reached codex" '! grep -q "^HERDR_" "$t/.stub-codex"'
 
 echo "16. A Codex prompt is labelled once at its start and once at its end"
@@ -215,6 +215,27 @@ jq -n '{result:{pane:{agent:"claude", agent_session:null, tokens:{}}}}' > "$t/.s
 ( sleep 1; pane_runs "$t" claude S1 ) &
 run_task "$t" working; wait
 check "reported" '[[ $(reports "$t") == 1 ]]'
+
+# name_pane <home> <space> <cwd> [label]: run pane-name.sh as herdr would for a new pane w1:p9 in folder <cwd>,
+# in a space named <space>, that already has the name [label] (none if left out); print the rename it asked for.
+name_pane() {
+    local t=$1
+    jq -n --arg l "${4:-}" '{result:{pane:{pane_id:"w1:p9", label:(if $l == "" then null else $l end)}}}' > "$t/.stub-pane"
+    jq -n --arg s "$2" '{result:{workspace:{workspace_id:"w1", label:(if $s == "" then null else $s end)}}}' > "$t/.stub-workspace"
+    rm -f "$t/.stub-log"
+    env -i HOME="$t" PATH="$t/bin:/usr/bin:/bin" HERDR_BIN_PATH="$t/bin/herdr" HERDR_PANE_ID="w1:p9" \
+        HERDR_PLUGIN_EVENT_JSON="$(jq -nc --arg c "$3" '{event:"pane_created", data:{type:"pane_created", pane:{pane_id:"w1:p9", workspace_id:"w1", cwd:$c}}}')" \
+        /bin/bash "$KIT/features/agent-activity/plugin/pane-name.sh"
+    grep '^pane rename ' "$t/.stub-log" 2>/dev/null || true
+}
+
+echo "19. A new pane is named after its space, plus its folder when that is different"
+t=$(new_home claude S1)
+check "at the space's folder: the space" '[[ $(name_pane "$t" herdr-kit /work/herdr-kit) == "pane rename w1:p9 herdr-kit" ]]'
+check "in a subfolder: space/folder" '[[ $(name_pane "$t" herdr-kit /work/herdr-kit/app) == "pane rename w1:p9 herdr-kit/app" ]]'
+check "a space without a name: the folder" '[[ $(name_pane "$t" "" /work/notes) == "pane rename w1:p9 notes" ]]'
+check "at /: the space" '[[ $(name_pane "$t" herdr-kit /) == "pane rename w1:p9 herdr-kit" ]]'
+check "a pane that already has a name is left alone" '[[ -z $(name_pane "$t" herdr-kit /work/app my-name) ]]'
 
 echo
 if ((fails)); then echo "$fails check(s) failed"; exit 1; fi

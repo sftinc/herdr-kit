@@ -1,6 +1,6 @@
 #!/bin/bash
 # Installed by herdr-kit: edit it in the repo and run ./setup.sh again.
-# herdr plugin hook for pane.agent_status_changed: sets the pane's $task sidebar token to a few words on what
+# herdr plugin hook for pane.agent_status_changed: sets the pane's $task sidebar token and title to a few words on what
 # its agent (Claude Code or Codex) is working on now, summarised by that agent's own CLI from the session log.
 set -uo pipefail
 exec >/dev/null 2>&1    # never prints; a leftover child holding herdr's pipes would keep the plugin slot busy
@@ -118,5 +118,6 @@ text=$(grep -m1 '[^[:space:]]' "$tmp/out" 2>/dev/null | sed -e 's/^[[:space:]"'\
 [[ -n "$text" ]] || exit 0
 seq=$(jq -r .seq <<<"$ctx")
 [[ "$type" == start ]] || seq=$((seq + 1))   # herdr drops a report whose seq isn't higher than the last
-"$herdr" pane report-metadata "$pane" --source herdr-kit:agent-task --seq "$seq" --token "task=$text" >/dev/null 2>&1
+# The label is also the pane's title; --agent shows it only while this agent runs, so the pane's own name comes back after.
+"$herdr" pane report-metadata "$pane" --source herdr-kit:agent-task --seq "$seq" --agent "$agent" --title "$text" --token "task=$text" >/dev/null 2>&1
 exit 0

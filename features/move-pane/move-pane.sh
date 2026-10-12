@@ -17,6 +17,7 @@ neighbor() { "$herdr" pane neighbor --pane "$1" --direction "$2" 2>/dev/null | j
 # move_to <target> <right|down>: herdr won't re-split a pane inside its own tab, so hop out to a temp tab and back.
 # A move doesn't tell the panes it resizes their new size (a swap does, even with itself), so every pane in the
 # tab is then swapped with itself; otherwise apps like the file viewer keep drawing at their old size.
+# Drop the loop once https://github.com/herdrdev/herdr/issues/5202 is fixed.
 move_to() {
     local p
     "$herdr" pane move "$pane" --new-tab --no-focus >/dev/null

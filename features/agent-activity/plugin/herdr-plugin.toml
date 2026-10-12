@@ -1,10 +1,15 @@
 # Installed by herdr-kit: edit it in the repo and run ./setup.sh again.
-# Sets each agent's $task sidebar token to what it is working on now (see agent-task.sh).
-id = "herdr-kit-agent-task"
-name = "herdr-kit agent task"
+# Names new panes after their space and folder (pane-name.sh), and sets each agent's $task sidebar token
+# and pane title to what it is working on now (agent-task.sh).
+id = "herdr-kit-agent-activity"
+name = "herdr-kit agent activity"
 version = "1.0.0"
 min_herdr_version = "0.9.3"
 platforms = ["macos"]
+
+[[events]]
+on = "pane.created"
+command = ["bash", "pane-name.sh"]
 
 [[events]]
 on = "pane.agent_status_changed"
