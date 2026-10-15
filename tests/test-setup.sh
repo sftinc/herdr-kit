@@ -55,6 +55,7 @@ check "exit 0" '[[ $rc == 0 ]]'
 check "5 blocks" '[[ $(blocks "$c") == 5 ]]'
 check "herdr accepts the config" 'herdr_ok "$c"'
 check "move-pane copied (a file, not a link)" 'is_copy "$t/.config/herdr/scripts/move-pane.sh"'
+check "equalize-panes copied" 'is_copy "$t/.config/herdr/scripts/equalize-panes.sh"'
 check "hook copied" 'is_copy "$t/.claude/hooks/herdr-last-tool.sh"'
 check "new-agent copied (a file, not a link)" 'is_copy "$t/.config/herdr/scripts/new-agent.sh"'
 check "copies are executable where the repo's are" '[[ -x $t/.config/herdr/scripts/move-pane.sh ]]'
@@ -70,20 +71,20 @@ check "second All: config unchanged" 'cmp -s "$c" "$t/conf1"'
 check "second All: no new backups" '[[ $(baks "$t") == "$b1" ]]'
 check "second All: plugin not linked again" '[[ $(grep -c "^plugin link " "$t/.stub-log") == 1 ]] && grep -q "already done: herdr plugin herdr-kit-agent-activity" "$t/out2"'
 
-echo "2. Customize: say no to agent-activity and move-pane"
-run_setup "$t" "$(customize agent-activity move-pane)" > "$t/out3"; rc=$?
+echo "2. Customize: say no to agent-activity and pane-layout"
+run_setup "$t" "$(customize agent-activity pane-layout)" > "$t/out3"; rc=$?
 check "exit 0" '[[ $rc == 0 ]]'
 check "3 blocks left" '[[ $(blocks "$c") == 3 ]]'
 check "agent-activity block gone" '! has_block "$c" agent-activity'
-check "move-pane block gone" '! has_block "$c" move-pane'
+check "pane-layout block gone" '! has_block "$c" pane-layout'
 check "keybindings block kept" 'has_block "$c" keybindings'
 check "hook copy gone" '[[ ! -e $t/.claude/hooks/herdr-last-tool.sh ]]'
 check "hook entry gone" '[[ $(hook_count "$t") == 0 ]]'
-check "move-pane copy gone" '[[ ! -e $t/.config/herdr/scripts/move-pane.sh ]]'
+check "pane-layout copies gone" '[[ ! -e $t/.config/herdr/scripts/move-pane.sh && ! -e $t/.config/herdr/scripts/equalize-panes.sh ]]'
 check "agent-activity plugin unlinked" 'grep -q "^plugin unlink herdr-kit-agent-activity$" "$t/.stub-log" && [[ ! -e $t/.stub-links ]]'
 check "agent-activity plugin folder gone" '[[ ! -e $(plugin_dir "$t") ]]'
 cp "$c" "$t/conf3"; b3=$(baks "$t")
-run_setup "$t" "$(customize agent-activity move-pane)" > /dev/null
+run_setup "$t" "$(customize agent-activity pane-layout)" > /dev/null
 check "same answers again: config unchanged" 'cmp -s "$c" "$t/conf3"'
 check "same answers again: no new backups" '[[ $(baks "$t") == "$b3" ]]'
 run_setup "$t" 'a\n' > /dev/null
@@ -98,7 +99,7 @@ run_setup "$t" 'a\n' > "$t/out"; rc=$?
 check "exit 1 (some lines not added)" '[[ $rc == 1 ]]'
 check "keybindings not added" '! has_block "$c" keybindings'
 check "agent-activity not added" '! has_block "$c" agent-activity'
-check "file-viewer and move-pane added" 'has_block "$c" file-viewer && has_block "$c" move-pane'
+check "file-viewer and pane-layout added" 'has_block "$c" file-viewer && has_block "$c" pane-layout'
 check "friend lines unchanged at the top" '[[ "$(head -c "$(wc -c < "$t/friend")" "$c")" == "$(cat "$t/friend")" ]]'
 check "herdr accepts the config" 'herdr_ok "$c"'
 check "tells them what to add by hand" 'grep -q "add these lines yourself" "$t/out"'
@@ -190,11 +191,11 @@ check "says it left it" 'grep -q "left as is" "$t/out"'
 echo "13. Your lines stay byte-for-byte (trailing blank lines too)"
 t=$(new_home); c=$(conf_of "$t"); mkdir -p "$(dirname "$c")"
 printf 'theme.name = "nord"\n\n\n' > "$c"; cp "$c" "$t/orig"
-run_setup "$t" "$(customize file-viewer agent-activity keybindings new-agent move-pane)" > /dev/null
+run_setup "$t" "$(customize file-viewer agent-activity keybindings new-agent pane-layout)" > /dev/null
 check "all n on a kit-free config: untouched" 'cmp -s "$c" "$t/orig"'
 check "all n: no backup made" '[[ $(baks "$t") == 0 ]]'
 run_setup "$t" 'a\n' > /dev/null
-run_setup "$t" "$(customize file-viewer agent-activity keybindings new-agent move-pane)" > /dev/null
+run_setup "$t" "$(customize file-viewer agent-activity keybindings new-agent pane-layout)" > /dev/null
 check "All then all n: back to the original bytes" 'cmp -s "$c" "$t/orig"'
 
 echo "14. A clash that breaks parsing shows herdr's own message"
@@ -209,7 +210,7 @@ t=$(new_home); c=$(conf_of "$t"); touch "$t/.stub-fail-install"
 run_setup "$t" 'a\n' > "$t/out"; rc=$?
 check "exit 1" '[[ $rc == 1 ]]'
 check "no file-viewer block" '! has_block "$c" file-viewer'
-check "other blocks added" 'has_block "$c" move-pane'
+check "other blocks added" 'has_block "$c" pane-layout'
 
 echo "16. Damaged markers are reported before the questions, with the line"
 t=$(new_home); c=$(conf_of "$t"); mkdir -p "$(dirname "$c")"
@@ -229,7 +230,7 @@ echo "18. A config with Windows line endings"
 t=$(new_home); c=$(conf_of "$t")
 run_setup "$t" 'a\n' > /dev/null
 perl -pi -e 's/\n/\r\n/' "$c"
-run_setup "$t" "$(customize file-viewer agent-activity keybindings new-agent move-pane)" > /dev/null; rc=$?
+run_setup "$t" "$(customize file-viewer agent-activity keybindings new-agent pane-layout)" > /dev/null; rc=$?
 check "exit 0" '[[ $rc == 0 ]]'
 check "all blocks removed" '[[ $(grep -c "herdr-kit" "$c") == 0 ]]'
 
@@ -254,7 +255,7 @@ printf 'a = 1\r\n\r\n   \n' > "$c"; cp "$c" "$t/orig"
 run_setup "$t" 'a\n' > /dev/null; cp "$c" "$t/after1"; b1=$(baks "$t")
 run_setup "$t" 'a\n' > /dev/null
 check "second All: unchanged" 'cmp -s "$c" "$t/after1" && [[ $(baks "$t") == "$b1" ]]'
-run_setup "$t" "$(customize file-viewer agent-activity keybindings new-agent move-pane)" > /dev/null
+run_setup "$t" "$(customize file-viewer agent-activity keybindings new-agent pane-layout)" > /dev/null
 check "all n: original bytes" 'cmp -s "$c" "$t/orig"'
 
 echo "22. No 'kept' claims when setup stops"
@@ -308,13 +309,13 @@ run_setup "$t" 'a\n' > /dev/null
 check "replaced by the kit copy" 'is_copy "$t/.config/herdr/scripts/move-pane.sh"'
 check "yours is in a backup" 'grep -q "my own" "$t"/.config/herdr/scripts/move-pane.sh.bak-*'
 printf 'my own again\n' > "$t/.config/herdr/scripts/move-pane.sh"
-run_setup "$t" "$(customize move-pane)" > /dev/null
+run_setup "$t" "$(customize pane-layout)" > /dev/null
 check "'n' leaves a file without the marker" 'grep -q "my own again" "$t/.config/herdr/scripts/move-pane.sh"'
 
 echo "29. An updated script in the repo replaces the old copy on the next run"
 t=$(new_home); mkdir -p "$t/kit-copy"; cp -R "$KIT/setup.sh" "$KIT/plugins" "$KIT/features" "$t/kit-copy/"
 RUN_KIT="$t/kit-copy" run_setup "$t" 'a\n' > /dev/null
-echo "# new line" >> "$t/kit-copy/features/move-pane/move-pane.sh"
+echo "# new line" >> "$t/kit-copy/features/pane-layout/move-pane.sh"
 b=$(baks "$t")
 RUN_KIT="$t/kit-copy" run_setup "$t" 'a\n' > /dev/null
 check "copy updated" 'grep -q "^# new line" "$t/.config/herdr/scripts/move-pane.sh"'
@@ -357,7 +358,7 @@ t=$(new_home); c=$(conf_of "$t"); mkdir -p "$t/kit-copy"; cp -R "$KIT/setup.sh" 
 RUN_KIT="$t/kit-copy" run_setup "$t" 'a\n' > /dev/null
 sed -i '' 's|^description = "move pane one column left"$|description = "old description"|' "$c"
 check "the old line is in the block" 'grep -qx "description = \"old description\"" "$c"'
-echo 'description = "old description"' > "$t/kit-copy/features/move-pane/config.old"
+echo 'description = "old description"' > "$t/kit-copy/features/pane-layout/config.old"
 RUN_KIT="$t/kit-copy" run_setup "$t" 'a\n' > "$t/out"; rc=$?
 check "exit 0" '[[ $rc == 0 ]]'
 check "old line gone" '! grep -q "old description" "$c"'
@@ -382,6 +383,26 @@ run_setup "$t" 'a\n' > "$t/out"; rc=$?
 check "exit 0" '[[ $rc == 0 ]]'
 check "old row gone, \$task row in" '! grep -q terminal_title_stripped "$c" && grep -q "token = \"\$task\"" "$c"'
 check "herdr accepts the config" 'herdr_ok "$c"'
+
+echo "36. A move-pane block from before the rename becomes a pane-layout block"
+t=$(new_home); c=$(conf_of "$t"); mkdir -p "$(dirname "$c")"
+cat > "$c" <<'EOF'
+theme.name = "nord"
+
+# >>> herdr-kit: move-pane >>>
+[[keys.command]]
+key = "prefix+m"
+type = "shell"
+command = "$HOME/.config/herdr/scripts/move-pane.sh left"
+description = "move pane one column left"
+# <<< herdr-kit: move-pane <<<
+EOF
+run_setup "$t" 'a\n' > "$t/out"; rc=$?
+check "exit 0" '[[ $rc == 0 ]]'
+check "move-pane block gone" '! has_block "$c" move-pane'
+check "pane-layout block added" 'has_block "$c" pane-layout'
+check "prefix+m bound once" '[[ $(grep -c "^key = \"prefix+m\"$" "$c") == 1 ]]'
+check "your line kept" 'grep -qx "theme.name = \"nord\"" "$c"'
 
 echo
 if ((fails)); then echo "$fails check(s) failed"; exit 1; fi
