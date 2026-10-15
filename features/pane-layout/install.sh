@@ -3,7 +3,6 @@
 # Copies move-pane.sh to where the bindings in config.toml expect it, then copies and links the herdr plugin that evens out panes.
 set -euo pipefail
 copy_in features/pane-layout/move-pane.sh "$HOME/.config/herdr/scripts/move-pane.sh"
-remove_copy "$HOME/.config/herdr/scripts/equalize-panes.sh"   # where an earlier version put it
 
 conf="${HERDR_CONFIG_PATH:-${XDG_CONFIG_HOME:-$HOME/.config}/herdr/config.toml}"
 plugin="$(dirname "$conf")/herdr-kit/pane-layout"

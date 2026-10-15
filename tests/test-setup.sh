@@ -222,13 +222,7 @@ check "exit 1" '[[ $rc == 1 ]]'
 check "says damaged (not 'no answer')" 'grep -q "damaged" "$t/out" && ! grep -q "No answer" "$t/out"'
 check "names line 2" 'grep -q "line 2" "$t/out"'
 
-echo "17. A leftover link into the kit is replaced by a copy without a backup"
-t=$(new_home); mkdir -p "$t/.claude/hooks"; ln -s "$KIT/features/last-tool/herdr-last-tool.sh" "$t/.claude/hooks/herdr-last-tool.sh"
-run_setup "$t" 'a\n' > /dev/null
-check "hook is now a copy" 'is_copy "$t/.claude/hooks/herdr-last-tool.sh"'
-check "no backup of the old link" '[[ $(find "$t/.claude/hooks" -name "*.bak-*" | wc -l | tr -d " ") == 0 ]]'
-
-echo "18. A config with Windows line endings"
+echo "17. A config with Windows line endings"
 t=$(new_home); c=$(conf_of "$t")
 run_setup "$t" 'a\n' > /dev/null
 perl -pi -e 's/\n/\r\n/' "$c"
@@ -236,13 +230,13 @@ run_setup "$t" "$(customize file-viewer agent-activity keybindings new-agent pan
 check "exit 0" '[[ $rc == 0 ]]'
 check "all blocks removed" '[[ $(grep -c "herdr-kit" "$c") == 0 ]]'
 
-echo "19. An empty settings.json gets no pointless backup"
+echo "18. An empty settings.json gets no pointless backup"
 t=$(new_home); : > "$t/.claude/settings.json"
 run_setup "$t" 'a\n' > /dev/null
 check "no settings.json backup" '[[ $(find "$t/.claude" -name "settings.json.bak-*" | wc -l | tr -d " ") == 0 ]]'
 check "hook added" '[[ $(hook_count "$t") == 1 ]]'
 
-echo "20. A failed install keeps the item's existing block"
+echo "19. A failed install keeps the item's existing block"
 t=$(new_home); c=$(conf_of "$t")
 run_setup "$t" 'a\n' > /dev/null
 printf '{"a":1,}' > "$t/.claude/settings.json"
@@ -251,7 +245,7 @@ check "exit 1" '[[ $rc == 1 ]]'
 check "agent-activity block still there" 'has_block "$c" agent-activity'
 check "message says left as it was" 'grep -q "left as they were" "$t/out"'
 
-echo "21. Blank lines that aren't empty survive, and a second run changes nothing"
+echo "20. Blank lines that aren't empty survive, and a second run changes nothing"
 t=$(new_home); c=$(conf_of "$t"); mkdir -p "$(dirname "$c")"
 printf 'a = 1\r\n\r\n   \n' > "$c"; cp "$c" "$t/orig"
 run_setup "$t" 'a\n' > /dev/null; cp "$c" "$t/after1"; b1=$(baks "$t")
@@ -260,44 +254,32 @@ check "second All: unchanged" 'cmp -s "$c" "$t/after1" && [[ $(baks "$t") == "$b
 run_setup "$t" "$(customize file-viewer agent-activity keybindings new-agent pane-layout)" > /dev/null
 check "all n: original bytes" 'cmp -s "$c" "$t/orig"'
 
-echo "22. No 'kept' claims when setup stops"
+echo "21. No 'kept' claims when setup stops"
 t=$(new_home); c=$(conf_of "$t"); mkdir -p "$(dirname "$c")"
 printf 'a = 1\n# >>> herdr-kit: file-viewer >>>\n[ui.sidebar.agents]\nrow_gap = 1\n' > "$c"
 run_setup "$t" 'a\n' > "$t/out"; rc=$?
 check "exit 1, damaged" '[[ $rc == 1 ]] && grep -q damaged "$t/out"'
 check "no kept message" '! grep -q "kept a line" "$t/out"'
 
-echo "23. A settings.json holding only whitespace still gets the hook"
+echo "22. A settings.json holding only whitespace still gets the hook"
 t=$(new_home); printf '\n' > "$t/.claude/settings.json"
 run_setup "$t" 'a\n' > /dev/null
 check "hook added" '[[ $(hook_count "$t") == 1 ]]'
 
-echo "24. A config linked into an old herdr-kit copy is replaced, not treated as your lines"
-t=$(new_home); c=$(conf_of "$t"); mkdir -p "$(dirname "$c")" "$t/old-kit/herdr" "$t/old-kit/features"
-touch "$t/old-kit/install.sh"
-printf '[keys]\nnext_workspace = "prefix+]"\n' > "$t/old-kit/herdr/config.toml"; cp "$t/old-kit/herdr/config.toml" "$t/old-copy"
-ln -s "$t/old-kit/herdr/config.toml" "$c"
-run_setup "$t" 'a\n' > "$t/out"; rc=$?
-check "exit 0" '[[ $rc == 0 ]]'
-check "config is now a regular file" '[[ -f $c && ! -L $c ]]'
-check "5 blocks" '[[ $(blocks "$c") == 5 ]]'
-check "old copy untouched" 'cmp -s "$t/old-kit/herdr/config.toml" "$t/old-copy"'
-check "says it replaced the old link" 'grep -q "old herdr-kit" "$t/out"'
-
-echo "25. Your own dotfiles link named herdr/config.toml stays a link"
+echo "23. Your own dotfiles link named herdr/config.toml stays a link"
 t=$(new_home); c=$(conf_of "$t"); mkdir -p "$(dirname "$c")" "$t/dotfiles/herdr"
 printf 'theme.name = "nord"\n' > "$t/dotfiles/herdr/config.toml"; ln -s "$t/dotfiles/herdr/config.toml" "$c"
 run_setup "$t" 'a\n' > /dev/null
 check "still a symlink" '[[ -L $c ]]'
 check "blocks in the dotfiles copy, your line kept" '[[ $(blocks "$t/dotfiles/herdr/config.toml") == 5 ]] && grep -q "^theme.name" "$t/dotfiles/herdr/config.toml"'
 
-echo "26. herdr's message is shown when setup can't read your config"
+echo "24. herdr's message is shown when setup can't read your config"
 t=$(new_home); c=$(conf_of "$t"); mkdir -p "$(dirname "$c")"
 printf '[keys]\nnext_tab = "prefix+n"\n[keys]\n' > "$c"
 run_setup "$t" 'a\n' > "$t/out"
 check "shows herdr's parse error" 'grep -q "parse error" "$t/out"'
 
-echo "27. Deleting the repo afterwards breaks nothing"
+echo "25. Deleting the repo afterwards breaks nothing"
 t=$(new_home); mkdir -p "$t/kit-copy"; cp -R "$KIT/setup.sh" "$KIT/plugins" "$KIT/features" "$t/kit-copy/"
 RUN_KIT="$t/kit-copy" run_setup "$t" 'a\n' > /dev/null
 rm -rf "$t/kit-copy"
@@ -305,7 +287,7 @@ check "hook still there" 'is_copy "$t/.claude/hooks/herdr-last-tool.sh"'
 check "move-pane still there" 'is_copy "$t/.config/herdr/scripts/move-pane.sh"'
 check "agent-activity plugin still there" 'is_copy "$(plugin_dir "$t")/agent-task.sh"'
 
-echo "28. Your own file at a target is backed up, and never removed"
+echo "26. Your own file at a target is backed up, and never removed"
 t=$(new_home); mkdir -p "$t/.config/herdr/scripts"; printf 'my own\n' > "$t/.config/herdr/scripts/move-pane.sh"
 run_setup "$t" 'a\n' > /dev/null
 check "replaced by the kit copy" 'is_copy "$t/.config/herdr/scripts/move-pane.sh"'
@@ -314,7 +296,7 @@ printf 'my own again\n' > "$t/.config/herdr/scripts/move-pane.sh"
 run_setup "$t" "$(customize pane-layout)" > /dev/null
 check "'n' leaves a file without the marker" 'grep -q "my own again" "$t/.config/herdr/scripts/move-pane.sh"'
 
-echo "29. An updated script in the repo replaces the old copy on the next run"
+echo "27. An updated script in the repo replaces the old copy on the next run"
 t=$(new_home); mkdir -p "$t/kit-copy"; cp -R "$KIT/setup.sh" "$KIT/plugins" "$KIT/features" "$t/kit-copy/"
 RUN_KIT="$t/kit-copy" run_setup "$t" 'a\n' > /dev/null
 echo "# new line" >> "$t/kit-copy/features/pane-layout/move-pane.sh"
@@ -323,107 +305,20 @@ RUN_KIT="$t/kit-copy" run_setup "$t" 'a\n' > /dev/null
 check "copy updated" 'grep -q "^# new line" "$t/.config/herdr/scripts/move-pane.sh"'
 check "no backup of our own old copy" '[[ $(baks "$t") == "$b" ]]'
 
-old=$(head -n 1 "$KIT/plugins/file-viewer/pins")
-new=$(tail -n 1 "$KIT/plugins/file-viewer/pins")
+pin=$(cat "$KIT/plugins/file-viewer/pin")
 # installed <home> <commit>: pretend herdr-file-viewer is installed at <commit>.
 installed() { printf '{"result":{"plugins":[{"plugin_id":"herdr-file-viewer","source":{"resolved_commit":"%s"}}]}}\n' "$2" > "$1/.stub-plugins"; }
 
-echo "30. An older kit pin is moved over to the fork"
-t=$(new_home); installed "$t" "$old"
-run_setup "$t" 'a\n' > "$t/out"
-check "uninstalls, then installs the fork at the pin" '[[ $(grep -n "^plugin uninstall herdr-file-viewer" "$t/.stub-log" | cut -d: -f1) -lt $(grep -n "^plugin install sftinc/herdr-file-viewer --ref $new" "$t/.stub-log" | cut -d: -f1) ]]'
-check "says it moved" 'grep -q "updated herdr-file-viewer to the sftinc fork at $new" "$t/out"'
-check "now at the pin" 'grep -q "$new" "$t/.stub-plugins"'
-
-echo "31. 'n' uninstalls an older kit pin"
-t=$(new_home); installed "$t" "$old"
+echo "28. 'n' uninstalls the kit's file-viewer"
+t=$(new_home); installed "$t" "$pin"
 run_setup "$t" "$(customize file-viewer)" > "$t/out"
 check "plugin removed" '[[ ! -f $t/.stub-plugins ]]'
 
-echo "32. A failed move leaves no plugin, and the next run installs it"
-t=$(new_home); installed "$t" "$old"; touch "$t/.stub-fail-install"
-run_setup "$t" 'a\n' > "$t/out"; rc=$?
-check "exit 1" '[[ $rc == 1 ]]'
-check "no plugin left" '[[ ! -f $t/.stub-plugins ]]'
-rm "$t/.stub-fail-install"
-run_setup "$t" 'a\n' > "$t/out2"
-check "the next run installs the fork" 'grep -q "$new" "$t/.stub-plugins"'
-
-echo "33. All leaves a file-viewer the kit didn't install"
+echo "29. All leaves a file-viewer the kit didn't install"
 t=$(new_home); installed "$t" deadbeef
 run_setup "$t" 'a\n' > "$t/out"
 check "still at its own commit" 'grep -q deadbeef "$t/.stub-plugins"'
 check "says it left it" 'grep -q "left as is" "$t/out"'
-
-echo "34. Lines an earlier kit version added (config.old) are recognised and replaced"
-t=$(new_home); c=$(conf_of "$t"); mkdir -p "$t/kit-copy"; cp -R "$KIT/setup.sh" "$KIT/plugins" "$KIT/features" "$t/kit-copy/"
-RUN_KIT="$t/kit-copy" run_setup "$t" 'a\n' > /dev/null
-sed -i '' 's|^description = "move pane one column left"$|description = "old description"|' "$c"
-check "the old line is in the block" 'grep -qx "description = \"old description\"" "$c"'
-echo 'description = "old description"' > "$t/kit-copy/features/pane-layout/config.old"
-RUN_KIT="$t/kit-copy" run_setup "$t" 'a\n' > "$t/out"; rc=$?
-check "exit 0" '[[ $rc == 0 ]]'
-check "old line gone" '! grep -q "old description" "$c"'
-check "current line back, once" '[[ $(grep -c "^description = \"move pane one column left\"$" "$c") == 1 ]]'
-
-echo "35. An agent-activity block from before the task line is upgraded"
-t=$(new_home); c=$(conf_of "$t"); mkdir -p "$(dirname "$c")"
-cat > "$c" <<'EOF'
-theme.name = "nord"
-
-# >>> herdr-kit: agent-activity >>>
-[ui.sidebar.agents]
-row_gap = 1
-rows = [
-  ["state_icon", "workspace"],
-  [{ token = "terminal_title_stripped", bold = true }],
-  [{ token = "$last_tool", dim = true }],
-]
-# <<< herdr-kit: agent-activity <<<
-EOF
-run_setup "$t" 'a\n' > "$t/out"; rc=$?
-check "exit 0" '[[ $rc == 0 ]]'
-check "old row gone, \$task row in" '! grep -q terminal_title_stripped "$c" && grep -q "token = \"\$task\"" "$c"'
-check "herdr accepts the config" 'herdr_ok "$c"'
-
-echo "36. A move-pane block from before the rename becomes a pane-layout block"
-t=$(new_home); c=$(conf_of "$t"); mkdir -p "$(dirname "$c")"
-cat > "$c" <<'EOF'
-theme.name = "nord"
-
-# >>> herdr-kit: move-pane >>>
-[[keys.command]]
-key = "prefix+m"
-type = "shell"
-command = "$HOME/.config/herdr/scripts/move-pane.sh left"
-description = "move pane one column left"
-
-[[keys.command]]
-key = "prefix+="
-type = "shell"
-command = "$HOME/.config/herdr/scripts/equalize-panes.sh"
-description = "even out pane sizes"
-# <<< herdr-kit: move-pane <<<
-EOF
-run_setup "$t" 'a\n' > "$t/out"; rc=$?
-check "exit 0" '[[ $rc == 0 ]]'
-check "move-pane block gone" '! has_block "$c" move-pane'
-check "pane-layout block added" 'has_block "$c" pane-layout'
-check "prefix+= binding gone" '! grep -q "prefix+=" "$c"'
-check "prefix+m bound once" '[[ $(grep -c "^key = \"prefix+m\"$" "$c") == 1 ]]'
-check "your line kept" 'grep -qx "theme.name = \"nord\"" "$c"'
-
-echo "37. A pane-layout block with the old prefix+= binding is upgraded"
-t=$(new_home); c=$(conf_of "$t"); mkdir -p "$(dirname "$c")"
-{ echo '# >>> herdr-kit: pane-layout >>>'; cat "$KIT/features/pane-layout/config.toml"
-  printf '\n[[keys.command]]\nkey = "prefix+="\ntype = "shell"\ncommand = "$HOME/.config/herdr/scripts/equalize-panes.sh"\ndescription = "even out pane sizes"\n'
-  echo '# <<< herdr-kit: pane-layout <<<'; } > "$c"
-mkdir -p "$t/.config/herdr/scripts"; printf '#!/bin/bash\n# Installed by herdr-kit: edit it in the repo and run ./setup.sh again.\n' > "$t/.config/herdr/scripts/equalize-panes.sh"
-run_setup "$t" 'a\n' > "$t/out"; rc=$?
-check "exit 0" '[[ $rc == 0 ]]'
-check "prefix+= binding gone" '! grep -q "prefix+=" "$c"'
-check "old equalize-panes copy gone" '[[ ! -e $t/.config/herdr/scripts/equalize-panes.sh ]]'
-check "herdr accepts the config" 'herdr_ok "$c"'
 
 echo
 if ((fails)); then echo "$fails check(s) failed"; exit 1; fi

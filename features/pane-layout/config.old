@@ -1,3 +1,0 @@
-key = "prefix+="
-command = "$HOME/.config/herdr/scripts/equalize-panes.sh"
-description = "even out pane sizes"

@@ -11,8 +11,8 @@ done
 say() { printf '  %s\n' "$*"; }
 
 # copy_in <repo path> <target>: copy a repo file into place, so it keeps working if the repo is deleted.
-# A copy setup made before (it has the "# Installed by herdr-kit" line) or an old link into this repo is
-# simply replaced; anything else in the way is backed up first.
+# A copy setup made before (it has the "# Installed by herdr-kit" line) is simply replaced; anything else
+# in the way is backed up first.
 copy_in() {
     local src="$KIT/$1" dst="$2"
     if [[ -f "$dst" && ! -L "$dst" ]] && cmp -s "$src" "$dst"; then
@@ -20,7 +20,7 @@ copy_in() {
         return
     fi
     mkdir -p "$(dirname "$dst")"
-    if [[ -L "$dst" && "$(readlink "$dst")" == "$KIT/"* ]] || kit_copy "$dst"; then
+    if kit_copy "$dst"; then
         rm "$dst"
     elif [[ -e "$dst" || -L "$dst" ]]; then
         local bak="$dst.bak-$(date +%Y%m%d-%H%M%S)"
@@ -34,9 +34,9 @@ copy_in() {
 # kit_copy <file>: true if <file> is a regular file that setup copied (it has the marker line).
 kit_copy() { [[ -f "$1" && ! -L "$1" ]] && grep -q '^# Installed by herdr-kit' "$1"; }
 
-# remove_copy <target>: remove <target> if setup put it there (a marked copy, or an old link into this repo).
+# remove_copy <target>: remove <target> if setup put it there (a marked copy).
 remove_copy() {
-    if [[ -L "$1" && "$(readlink "$1")" == "$KIT/"* ]] || kit_copy "$1"; then
+    if kit_copy "$1"; then
         rm "$1"
         say "removed $1"
     fi
@@ -59,8 +59,8 @@ strip_blocks() {
             open = name; opened = NR
             flush(1)
             split("", ours); known = 0; header = 0
-            for (k = 1; k <= 4; k++) {   # config.toml, and config.old: lines earlier versions added
-                f = kit (k % 2 ? "/plugins/" : "/features/") open (k <= 2 ? "/config.toml" : "/config.old")
+            for (k = 1; k <= 2; k++) {
+                f = kit (k == 1 ? "/plugins/" : "/features/") open "/config.toml"
                 while ((getline l < f) > 0) { ours[l] = 1; known = 1 }
                 close(f)
             }
@@ -90,18 +90,6 @@ strip_blocks() {
             printf "%s", kept > "/dev/stderr"
         }
     ' "$1"
-}
-
-# kit_link <file>: true if <file> is a symlink into this repo, or into another herdr-kit copy's
-# herdr/config.toml (what the old install.sh made).
-kit_link() {
-    [[ -L "$1" ]] || return 1
-    local target root
-    target=$(readlink "$1")
-    [[ "$target" == "$KIT/"* ]] && return 0
-    [[ "$target" == */herdr/config.toml ]] || return 1
-    root="${target%/herdr/config.toml}"
-    [[ -d "$root/features" && ( -f "$root/install.sh" || -f "$root/setup.sh" ) ]]
 }
 
 # issues <file>: print herdr's issue lines for <file>, sorted; fails on a parse/read error or unknown output.
@@ -135,11 +123,7 @@ conf="${HERDR_CONFIG_PATH:-${XDG_CONFIG_HOME:-$HOME/.config}/herdr/config.toml}"
 mkdir -p "$(dirname "$conf")"
 tmp="$conf.herdr-kit-$$"
 trap 'rm -f "$tmp".*' EXIT
-old_link=""
-if kit_link "$conf"; then
-    old_link=$(readlink "$conf")   # the old install.sh's link: start fresh, the linked file isn't yours
-    : > "$tmp.cur"
-elif [[ -e "$conf" ]]; then
+if [[ -e "$conf" ]]; then
     cp "$conf" "$tmp.cur"
 else
     : > "$tmp.cur"
@@ -236,17 +220,14 @@ if ! issues "$tmp.cand" > /dev/null; then
     echo "The new config failed herdr's check; $conf was not changed." >&2
     exit 1
 fi
-if [[ -z "$old_link" ]] && cmp -s "$tmp.cand" "$tmp.cur"; then
+if cmp -s "$tmp.cand" "$tmp.cur"; then
     say "already done: $conf"
 else
-    if [[ -n "$old_link" ]]; then
-        say "replaced the link to an old herdr-kit copy ($old_link) with a regular file"
-    elif [[ -e "$conf" ]]; then
+    if [[ -e "$conf" ]]; then
         bak="$conf.bak-$(date +%Y%m%d-%H%M%S)"
         cp "$tmp.cur" "$bak"
         say "backed up $conf -> $bak"
     fi
-    if [[ -n "$old_link" ]]; then rm "$conf"; fi
     cat "$tmp.cand" > "$conf"
     say "wrote $conf"
 fi

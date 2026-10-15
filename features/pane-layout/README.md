@@ -51,8 +51,6 @@ description = "move pane one column right"
 
 herdr runs `shell` commands through `$SHELL -lc`, so `$HOME` expands. The scripts call herdr through `$HERDR_BIN_PATH`, which herdr sets for key commands, and fall back to `herdr` on your `PATH`.
 
-This item used to be called move-pane. Running `./setup.sh` replaces the old `herdr-kit: move-pane` block with this one.
-
 ## Keybindings
 
 | Key | Does |

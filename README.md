@@ -86,8 +86,7 @@ Every folder in `plugins/` and `features/` has the same files:
 | `install.sh` | line 2 is the one-line description shown by setup; installs links, hooks or plugins; safe to re-run |
 | `remove.sh` | undoes only what the kit added (links into this repo, its own hook entry); safe to re-run |
 | `config.toml` | optional: the herdr lines setup adds as the item's block |
-| `config.old` | optional: lines earlier versions of `config.toml` added, so setup replaces them instead of stopping |
-| `pins` | file-viewer only: every commit the kit has pinned, oldest first; the last is installed |
+| `pin` | file-viewer only: the commit the kit installs |
 
 ## Add a feature
 
@@ -111,14 +110,7 @@ Every folder in `plugins/` and `features/` has the same files:
 5. Add any keys to `KEYBINDINGS.md`, and write `README.md` with the headings above.
 6. Run `./tests/test-setup.sh`, then `./setup.sh` twice: the second run should report `already done`.
 
-A third-party plugin works the same way under `plugins/<name>/`: `install.sh` runs `herdr plugin install <owner/repo> --ref <commit> --yes`, pinned to a commit (see `plugins/file-viewer/`, whose `pins` file also lets setup recognise and move copies it installed earlier).
-
-## Coming from the old install.sh
-
-Earlier versions had `./install.sh`, which replaced your herdr config with a symlink to this repo's `herdr/config.toml` (now gone). After `git pull`:
-
-1. Run `./setup.sh`. It writes a fresh config with the blocks you pick in place of that symlink (also when the link points at an older or moved copy of this repo), and replaces the old script links with copies.
-2. `install.sh` saved your own config before linking it, as `~/.config/herdr/config.toml.bak-<date-time>`. Copy any of your own settings from that file into the new config, outside the `# >>> herdr-kit` blocks.
+A third-party plugin works the same way under `plugins/<name>/`: `install.sh` runs `herdr plugin install <owner/repo> --ref <commit> --yes`, pinned to a commit (see `plugins/file-viewer/`).
 
 ## Tests
 
