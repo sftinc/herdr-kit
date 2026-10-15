@@ -45,7 +45,7 @@ When the app starts the herdr server, every pane gets the app's access to protec
 macOS keeps that grant across rebuilds only if each build is signed with the same certificate. Make one once:
 
 1. Open Keychain Access and choose Keychain Access › Certificate Assistant › Create a Certificate.
-2. Name it `Herdr Local Signing`, set Identity Type to Self Signed Root and Certificate Type to Code Signing, then click Create.
+2. Name it `Swift Code Signing`, set Identity Type to Self Signed Root and Certificate Type to Code Signing, then click Create.
 3. Run `./app/build.sh --install`, and grant access once more: allow the Documents prompt when the app first opens, or add the app to Full Disk Access again. Later rebuilds keep it.
 
 `build.sh` signs with that certificate when it finds it, and ad-hoc otherwise.
