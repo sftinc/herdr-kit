@@ -12,6 +12,8 @@ A pane stacked with two or more others at the edge also stays put: herdr splits 
 
 herdr won't re-split a pane inside its own tab, so the script moves the pane out to a temporary tab and back in.
 
+After each move the panes in the tab are evened out, as prefix+= does.
+
 **Even out panes:** prefix+= makes every column in the tab the same width, and every pane in a column the same height. herdr splits a pane in half each time, so three columns come out 50% / 25% / 25%; prefix+= turns that into thirds.
 
 A column that is itself split side by side counts as that many columns, so its panes get the same width as the other columns.
