@@ -60,15 +60,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, LocalProcessTerminalVi
 
     // Left Option + key sends herdr's prefix (Ctrl-B) and then the key, so left Option+h
     // is prefix+h. Arrows stand in for h/j/k/l: left Option+left is prefix+h, and with
-    // Shift it is prefix+H. Right Option still works as Meta.
+    // Shift up/down are prefix+K/J. Shift left/right are prefix+m/M instead (move-pane).
+    // Right Option still works as Meta.
     func watchLeftOptionChords() {
         let leftOptionMask: UInt = 0x20 // NX_DEVICELALTKEYMASK
         let arrowLetters: [UInt16: String] = [123: "h", 125: "j", 126: "k", 124: "l"] // left, down, up, right
+        let shiftArrowKeys: [UInt16: String] = [123: "m", 124: "M"] // left, right: move-pane
         NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             let flags = event.modifierFlags
             var key = event.charactersIgnoringModifiers
             if let letter = arrowLetters[event.keyCode] {
-                key = flags.contains(.shift) ? letter.uppercased() : letter
+                key = flags.contains(.shift) ? shiftArrowKeys[event.keyCode] ?? letter.uppercased() : letter
             }
             guard flags.rawValue & leftOptionMask != 0,
                   flags.isDisjoint(with: [.command, .control]),

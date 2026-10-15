@@ -19,4 +19,4 @@ Every key the kit adds, and which item it comes from. `prefix` is herdr's prefix
 
 - Bind shifted punctuation as the character the keyboard sends: `prefix+}`, not `prefix+shift+]`. herdr accepts `prefix+shift+]` without complaint, but it never fires.
 - herdr reads keybindings in its window (the client). After setup, press prefix+shift+r in herdr; `herdr server reload-config` doesn't reach the window.
-- Herdr.app (in `app/`) turns Left Option + key into prefix + key, so Left Option+m is prefix+m and Left Option+Shift+] is prefix+}. Left Option+arrow is prefix+h/j/k/l (move between panes), and with Shift it is prefix+shift+h/j/k/l (swap panes). Right Option still works as Meta.
+- Herdr.app (in `app/`) turns Left Option + key into prefix + key, so Left Option+m is prefix+m and Left Option+Shift+] is prefix+}. Left Option+arrow is prefix+h/j/k/l (move between panes). With Shift, up/down are prefix+shift+k/j (swap panes) and left/right are prefix+m / prefix+shift+m (move-pane). Right Option still works as Meta.
