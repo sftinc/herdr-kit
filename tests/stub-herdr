@@ -7,8 +7,11 @@ case "$1 $2" in
         fv='[]'; [[ -f "$HOME/.stub-plugins" ]] && fv=$(jq '.result.plugins' "$HOME/.stub-plugins")
         lk='[]'; [[ -f "$HOME/.stub-links" ]] && lk=$(cat "$HOME/.stub-links")
         jq -n --argjson a "$fv" --argjson b "$lk" '{result:{plugins:($a + $b)}}' ;;
-    "plugin link") jq -n --arg p "$3" '[{plugin_id:"herdr-kit-agent-activity", plugin_root:$p}]' > "$HOME/.stub-links" ;;
-    "plugin unlink") rm -f "$HOME/.stub-links" ;;
+    "plugin link" | "plugin unlink")   # .stub-links: the linked plugins; the file is gone when there are none
+        lk='[]'; [[ -f "$HOME/.stub-links" ]] && lk=$(cat "$HOME/.stub-links")
+        if [[ $2 == link ]]; then id=$(sed -n 's/^id = "\(.*\)"$/\1/p' "$3/herdr-plugin.toml"); root=$3; else id=$3; root=; fi
+        lk=$(jq -c --arg id "$id" --arg p "$root" 'map(select(.plugin_id != $id)) + (if $p == "" then [] else [{plugin_id:$id, plugin_root:$p}] end)' <<<"$lk")
+        if [[ $lk == '[]' ]]; then rm -f "$HOME/.stub-links"; else echo "$lk" > "$HOME/.stub-links"; fi ;;
     "plugin install")
         [[ -f "$HOME/.stub-fail-install" ]] && { echo "network error" >&2; exit 1; }
         ref=""; prev=""

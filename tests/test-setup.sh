@@ -46,7 +46,7 @@ has_block() { grep -qx "# >>> herdr-kit: $2 >>>" "$1"; }
 baks()    { find "$1" -name '*.bak-*' | wc -l | tr -d ' '; }
 hook_count() { jq --arg c "$HOOK" '[.hooks.PreToolUse[]?.hooks[]?.command | select(. == $c)] | length' "$1/.claude/settings.json"; }
 herdr_ok() { HERDR_CONFIG_PATH="$1" "$REAL_HERDR" config check | head -1 | grep -qi '^config: ok$'; }
-plugin_dir() { echo "$(cd "$1" && pwd -P)/.config/herdr/herdr-kit/agent-activity"; }   # resolved, as herdr stores it (/var -> /private/var)
+plugin_dir() { echo "$(cd "$1" && pwd -P)/.config/herdr/herdr-kit/${2:-agent-activity}"; }   # resolved, as herdr stores it (/var -> /private/var)
 
 echo "1. All, then All again"
 t=$(new_home); c=$(conf_of "$t")
@@ -55,7 +55,8 @@ check "exit 0" '[[ $rc == 0 ]]'
 check "5 blocks" '[[ $(blocks "$c") == 5 ]]'
 check "herdr accepts the config" 'herdr_ok "$c"'
 check "move-pane copied (a file, not a link)" 'is_copy "$t/.config/herdr/scripts/move-pane.sh"'
-check "equalize-panes copied" 'is_copy "$t/.config/herdr/scripts/equalize-panes.sh"'
+check "equalize-panes copied into the plugin" 'is_copy "$(plugin_dir "$t" pane-layout)/equalize-panes.sh"'
+check "pane-layout plugin copied and linked" 'is_copy "$(plugin_dir "$t" pane-layout)/even-out.sh" && [[ $(grep -c "^plugin link $(plugin_dir "$t" pane-layout)$" "$t/.stub-log") == 1 ]]'
 check "hook copied" 'is_copy "$t/.claude/hooks/herdr-last-tool.sh"'
 check "new-agent copied (a file, not a link)" 'is_copy "$t/.config/herdr/scripts/new-agent.sh"'
 check "copies are executable where the repo's are" '[[ -x $t/.config/herdr/scripts/move-pane.sh ]]'
@@ -69,7 +70,7 @@ run_setup "$t" 'a\n' > "$t/out2"; rc=$?
 check "second All: exit 0" '[[ $rc == 0 ]]'
 check "second All: config unchanged" 'cmp -s "$c" "$t/conf1"'
 check "second All: no new backups" '[[ $(baks "$t") == "$b1" ]]'
-check "second All: plugin not linked again" '[[ $(grep -c "^plugin link " "$t/.stub-log") == 1 ]] && grep -q "already done: herdr plugin herdr-kit-agent-activity" "$t/out2"'
+check "second All: plugins not linked again" '[[ $(grep -c "^plugin link " "$t/.stub-log") == 2 ]] && grep -q "already done: herdr plugin herdr-kit-agent-activity" "$t/out2" && grep -q "already done: herdr plugin herdr-kit-pane-layout" "$t/out2"'
 
 echo "2. Customize: say no to agent-activity and pane-layout"
 run_setup "$t" "$(customize agent-activity pane-layout)" > "$t/out3"; rc=$?
@@ -80,7 +81,8 @@ check "pane-layout block gone" '! has_block "$c" pane-layout'
 check "keybindings block kept" 'has_block "$c" keybindings'
 check "hook copy gone" '[[ ! -e $t/.claude/hooks/herdr-last-tool.sh ]]'
 check "hook entry gone" '[[ $(hook_count "$t") == 0 ]]'
-check "pane-layout copies gone" '[[ ! -e $t/.config/herdr/scripts/move-pane.sh && ! -e $t/.config/herdr/scripts/equalize-panes.sh ]]'
+check "pane-layout plugin unlinked and removed" 'grep -q "^plugin unlink herdr-kit-pane-layout$" "$t/.stub-log" && [[ ! -e $(plugin_dir "$t" pane-layout) ]]'
+check "pane-layout copies gone" '[[ ! -e $t/.config/herdr/scripts/move-pane.sh ]]'
 check "agent-activity plugin unlinked" 'grep -q "^plugin unlink herdr-kit-agent-activity$" "$t/.stub-log" && [[ ! -e $t/.stub-links ]]'
 check "agent-activity plugin folder gone" '[[ ! -e $(plugin_dir "$t") ]]'
 cp "$c" "$t/conf3"; b3=$(baks "$t")
@@ -143,7 +145,7 @@ check "layout block added" 'has_block "$c" agent-activity'
 check "no .claude created" '[[ ! -e $t/.claude ]]'
 check "plugin still linked" '[[ -f $t/.stub-links ]] && is_copy "$(plugin_dir "$t")/agent-task.sh"'
 run_setup "$t" "$(customize agent-activity)" > /dev/null
-check "'n' without Claude Code: plugin unlinked and removed" '[[ ! -e $t/.stub-links && ! -e $(plugin_dir "$t") ]]'
+check "'n' without Claude Code: plugin unlinked and removed" '! grep -q herdr-kit-agent-activity "$t/.stub-links" && [[ ! -e $(plugin_dir "$t") ]]'
 
 echo "8. No answer (stdin closed)"
 t=$(new_home); c=$(conf_of "$t")
@@ -395,14 +397,33 @@ key = "prefix+m"
 type = "shell"
 command = "$HOME/.config/herdr/scripts/move-pane.sh left"
 description = "move pane one column left"
+
+[[keys.command]]
+key = "prefix+="
+type = "shell"
+command = "$HOME/.config/herdr/scripts/equalize-panes.sh"
+description = "even out pane sizes"
 # <<< herdr-kit: move-pane <<<
 EOF
 run_setup "$t" 'a\n' > "$t/out"; rc=$?
 check "exit 0" '[[ $rc == 0 ]]'
 check "move-pane block gone" '! has_block "$c" move-pane'
 check "pane-layout block added" 'has_block "$c" pane-layout'
+check "prefix+= binding gone" '! grep -q "prefix+=" "$c"'
 check "prefix+m bound once" '[[ $(grep -c "^key = \"prefix+m\"$" "$c") == 1 ]]'
 check "your line kept" 'grep -qx "theme.name = \"nord\"" "$c"'
+
+echo "37. A pane-layout block with the old prefix+= binding is upgraded"
+t=$(new_home); c=$(conf_of "$t"); mkdir -p "$(dirname "$c")"
+{ echo '# >>> herdr-kit: pane-layout >>>'; cat "$KIT/features/pane-layout/config.toml"
+  printf '\n[[keys.command]]\nkey = "prefix+="\ntype = "shell"\ncommand = "$HOME/.config/herdr/scripts/equalize-panes.sh"\ndescription = "even out pane sizes"\n'
+  echo '# <<< herdr-kit: pane-layout <<<'; } > "$c"
+mkdir -p "$t/.config/herdr/scripts"; printf '#!/bin/bash\n# Installed by herdr-kit: edit it in the repo and run ./setup.sh again.\n' > "$t/.config/herdr/scripts/equalize-panes.sh"
+run_setup "$t" 'a\n' > "$t/out"; rc=$?
+check "exit 0" '[[ $rc == 0 ]]'
+check "prefix+= binding gone" '! grep -q "prefix+=" "$c"'
+check "old equalize-panes copy gone" '[[ ! -e $t/.config/herdr/scripts/equalize-panes.sh ]]'
+check "herdr accepts the config" 'herdr_ok "$c"'
 
 echo
 if ((fails)); then echo "$fails check(s) failed"; exit 1; fi

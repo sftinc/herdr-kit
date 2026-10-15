@@ -24,7 +24,7 @@ herdr-kit: install everything? [A]ll / [c]ustomize:
     agent-activity  Names panes after their space and folder; the Agents sidebar and pane title show what each agent is working on, the sidebar also the tool it's running [y/n]:
     keybindings     prefix+] / prefix+[ switch spaces, prefix+} / prefix+{ switch agents [y/n]:
     new-agent       prefix+a opens a new Claude pane to the right, prefix+shift+a below [y/n]:
-    pane-layout     prefix+m / prefix+shift+m move a pane one column left / right, stacking it under the column it lands in; prefix+= evens out the panes [y/n]:
+    pane-layout     prefix+m / prefix+shift+m move a pane one column left / right, stacking it under the column it lands in; panes even out on every split, move and close [y/n]:
   ```
 
   `y` installs or updates an item. `n` removes it if setup installed it before; things you set up yourself (for example a file viewer you installed at another version) are left alone. Run `./setup.sh` again any time to change your mind.
@@ -39,7 +39,7 @@ After setup, press prefix+shift+r in herdr so new keybindings are picked up. (`p
 | agent-activity | Names panes after their space and folder; the Agents sidebar and pane title show what each agent is working on, the sidebar also the tool it's running (Claude Code, Codex) | [features/agent-activity](features/agent-activity/README.md) |
 | keybindings | prefix+] / prefix+[ switch spaces, prefix+} / prefix+{ switch agents | [features/keybindings](features/keybindings/README.md) |
 | new-agent | prefix+a opens a new Claude pane to the right, prefix+shift+a below | [features/new-agent](features/new-agent/README.md) |
-| pane-layout | prefix+m / prefix+shift+m move a pane one column left / right, stacking it under the column it lands in; prefix+= evens out the panes | [features/pane-layout](features/pane-layout/README.md) |
+| pane-layout | prefix+m / prefix+shift+m move a pane one column left / right, stacking it under the column it lands in; panes even out on every split, move and close | [features/pane-layout](features/pane-layout/README.md) |
 
 All the keys are listed in [KEYBINDINGS.md](KEYBINDINGS.md). The Mac app is separate: see [app/README.md](app/README.md).
 
@@ -70,7 +70,7 @@ herdr's own agent integrations (for Claude Code, Codex and others) aren't part o
   If the markers are damaged, or herdr can't read your config at all, setup says which line and stops before asking anything. `herdr config reset-keys` is a common cause of damaged markers: it removes comment lines, including the kit's end markers, from `[keys]` sections. The simplest fix is to restore the backup reset-keys made (it prints "Created backup: …"). Or delete everything from the first leftover `# >>> herdr-kit` line to the last `# <<< herdr-kit` line, then run setup again.
 
   If you edit a kit line inside a block, the next setup run puts the kit's version back. Change it outside the block, or answer `n` for that item and add the lines yourself. herdr's Settings sometimes adds one of *your* settings just inside a kit block (it inserts before the next section header); setup moves such a line above the block and tells you. Any other unknown line inside a block makes setup stop and show it, with nothing changed.
-- **Scripts** are copied into place (`~/.config/herdr/scripts/`, `~/.config/herdr/herdr-kit/`, `~/.claude/hooks/`), so everything keeps working if you delete or move this repo. Each copy has an `# Installed by herdr-kit` line; setup only ever replaces or removes files with that line. After a `git pull`, run `./setup.sh` again to pick up changes. agent-activity also links its herdr plugin from there (`herdr plugin link`).
+- **Scripts** are copied into place (`~/.config/herdr/scripts/`, `~/.config/herdr/herdr-kit/`, `~/.claude/hooks/`), so everything keeps working if you delete or move this repo. Each copy has an `# Installed by herdr-kit` line; setup only ever replaces or removes files with that line. After a `git pull`, run `./setup.sh` again to pick up changes. agent-activity and pane-layout also link their herdr plugins from there (`herdr plugin link`).
 - **`~/.claude/settings.json`** gets one hook entry (agent-activity).
 - **Nothing is deleted without a copy:** a file that changes or is in the way is saved as `<name>.bak-<date-time>` first.
 

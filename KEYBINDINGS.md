@@ -14,7 +14,6 @@ Every key the kit adds, and which item it comes from. `prefix` is herdr's prefix
 | prefix+shift+a | new Claude pane below | [new-agent](features/new-agent/README.md) |
 | prefix+m | move the focused pane one column left | [pane-layout](features/pane-layout/README.md) |
 | prefix+shift+m | move the focused pane one column right | [pane-layout](features/pane-layout/README.md) |
-| prefix+= | even out the pane sizes in the tab | [pane-layout](features/pane-layout/README.md) |
 
 ## Notes
 

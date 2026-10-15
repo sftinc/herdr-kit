@@ -9,9 +9,3 @@ key = "prefix+shift+m"
 type = "shell"
 command = "$HOME/.config/herdr/scripts/move-pane.sh right"
 description = "move pane one column right"
-
-[[keys.command]]
-key = "prefix+="
-type = "shell"
-command = "$HOME/.config/herdr/scripts/equalize-panes.sh"
-description = "even out pane sizes"

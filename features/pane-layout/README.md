@@ -12,9 +12,11 @@ A pane stacked with two or more others at the edge also stays put: herdr splits 
 
 herdr won't re-split a pane inside its own tab, so the script moves the pane out to a temporary tab and back in.
 
-After each move the panes in the tab are evened out, as prefix+= does.
+**Even out panes:** every column in the tab gets the same width, and every pane in a column the same height. herdr splits a pane in half each time, so three columns would come out 50% / 25% / 25%; this makes them thirds.
 
-**Even out panes:** prefix+= makes every column in the tab the same width, and every pane in a column the same height. herdr splits a pane in half each time, so three columns come out 50% / 25% / 25%; prefix+= turns that into thirds.
+It happens on its own whenever a pane is added (new-agent, herdr's split keys, anything), moved (move-pane or otherwise) or closed: a herdr plugin listens for `pane.created`, `pane.moved` and `pane.closed`. Resizing doesn't trigger it, so a size you set by hand stays until the next split, move or close.
+
+A closed pane's event only names its space, so on a close the space's active tab is evened out.
 
 A column that is itself split side by side counts as that many columns, so its panes get the same width as the other columns.
 
@@ -23,7 +25,9 @@ A column that is itself split side by side counts as that many columns, so its p
 | Repo | On the Mac |
 |---|---|
 | `features/pane-layout/move-pane.sh` | `~/.config/herdr/scripts/move-pane.sh` (a copy) |
-| `features/pane-layout/equalize-panes.sh` | `~/.config/herdr/scripts/equalize-panes.sh` (a copy) |
+| `features/pane-layout/plugin/herdr-plugin.toml` | `~/.config/herdr/herdr-kit/pane-layout/herdr-plugin.toml` (a copy, linked with `herdr plugin link`) |
+| `features/pane-layout/plugin/even-out.sh` | `~/.config/herdr/herdr-kit/pane-layout/even-out.sh` (a copy) |
+| `features/pane-layout/plugin/equalize-panes.sh` | `~/.config/herdr/herdr-kit/pane-layout/equalize-panes.sh` (a copy) |
 
 Needs `jq` (used to read herdr's JSON output).
 
@@ -43,12 +47,6 @@ key = "prefix+shift+m"
 type = "shell"
 command = "$HOME/.config/herdr/scripts/move-pane.sh right"
 description = "move pane one column right"
-
-[[keys.command]]
-key = "prefix+="
-type = "shell"
-command = "$HOME/.config/herdr/scripts/equalize-panes.sh"
-description = "even out pane sizes"
 ```
 
 herdr runs `shell` commands through `$SHELL -lc`, so `$HOME` expands. The scripts call herdr through `$HERDR_BIN_PATH`, which herdr sets for key commands, and fall back to `herdr` on your `PATH`.
@@ -61,7 +59,6 @@ This item used to be called move-pane. Running `./setup.sh` replaces the old `he
 |---|---|
 | prefix+m | move the focused pane one column left |
 | prefix+shift+m | move the focused pane one column right |
-| prefix+= | even out the pane sizes in the tab |
 
 ## Install
 
@@ -69,12 +66,12 @@ This item used to be called move-pane. Running `./setup.sh` replaces the old `he
 
 ## Remove
 
-`./setup.sh`, then Customize and answer `n` to pane-layout. That removes the copies and the block.
+`./setup.sh`, then Customize and answer `n` to pane-layout. That unlinks the plugin and removes the copies and the block.
 
-By hand: delete the `herdr-kit: pane-layout` block from your herdr config, and `move-pane.sh` and `equalize-panes.sh` from `~/.config/herdr/scripts/`.
+By hand: `herdr plugin unlink herdr-kit-pane-layout`, delete `~/.config/herdr/herdr-kit/pane-layout/`, the `herdr-kit: pane-layout` block from your herdr config, and `~/.config/herdr/scripts/move-pane.sh`.
 
 ## Check it works
 
 Split a pane to the right (two panes side by side), focus the right one, press prefix+m: it moves under the left one. Press prefix+shift+m: it becomes its own column on the right again.
 
-Split the right pane to the right again: the columns are 50% / 25% / 25%. Press prefix+=: each is a third.
+Split the right pane to the right again: the three columns come out a third each.

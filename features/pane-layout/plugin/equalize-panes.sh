@@ -11,6 +11,13 @@ set -euo pipefail
 herdr="${HERDR_BIN_PATH:-herdr}"
 pane=${1:-$("$herdr" pane current | jq -r '.result.pane.pane_id')}
 
+# One run at a time: a pane move fires several events at once, and two runs on the same layout would each
+# apply the same nudges. A lock left by a killed run is taken over after about 2 seconds.
+lock="${TMPDIR:-/tmp}/herdr-kit-equalize.lock"
+i=0
+until mkdir "$lock" 2>/dev/null; do ((i++ < 40)) || break; sleep 0.05; done
+trap 'rmdir "$lock" 2>/dev/null' EXIT
+
 "$herdr" pane layout --pane "$pane" | jq -r '.result.layout as $l | $l.splits[]
     | (if .direction == "right" then {pos: "x", len: "width", fwd: "right", back: "left"}
        else {pos: "y", len: "height", fwd: "down", back: "up"} end) as $a

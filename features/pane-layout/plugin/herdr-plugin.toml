@@ -1,0 +1,19 @@
+# Installed by herdr-kit: edit it in the repo and run ./setup.sh again.
+# Evens out a tab's panes whenever a pane is added to it, moved in or out of it, or closed (even-out.sh, which runs equalize-panes.sh).
+id = "herdr-kit-pane-layout"
+name = "herdr-kit pane layout"
+version = "1.0.0"
+min_herdr_version = "0.9.3"
+platforms = ["macos"]
+
+[[events]]
+on = "pane.created"
+command = ["bash", "even-out.sh"]
+
+[[events]]
+on = "pane.moved"
+command = ["bash", "even-out.sh"]
+
+[[events]]
+on = "pane.closed"
+command = ["bash", "even-out.sh"]
