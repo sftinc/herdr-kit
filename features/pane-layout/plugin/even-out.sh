@@ -1,8 +1,8 @@
 #!/bin/bash
 # Installed by herdr-kit: edit it in the repo and run ./setup.sh again.
-# herdr plugin hook for pane.created, pane.moved and pane.closed: evens out the panes of each tab the event
-# changed, with equalize-panes.sh. A moved pane changes the tab it left and the one it joined. A closed pane's
-# event only names its space, so that space's active tab is evened out.
+# herdr plugin hook for pane.created, pane.moved, pane.closed and pane.exited: evens out the panes of each tab the
+# event changed, with equalize-panes.sh. A moved pane changes the tab it left and the one it joined. A closed or
+# exited pane's event only names its space, so that space's active tab is evened out.
 set -uo pipefail
 exec >/dev/null 2>&1    # never prints
 

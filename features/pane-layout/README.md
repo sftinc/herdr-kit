@@ -14,9 +14,9 @@ herdr won't re-split a pane inside its own tab, so the script moves the pane out
 
 **Even out panes:** every column in the tab gets the same width, and every pane in a column the same height. herdr splits a pane in half each time, so three columns would come out 50% / 25% / 25%; this makes them thirds.
 
-It happens on its own whenever a pane is added (new-agent, herdr's split keys, anything), moved (move-pane or otherwise) or closed: a herdr plugin listens for `pane.created`, `pane.moved` and `pane.closed`. Resizing doesn't trigger it, so a size you set by hand stays until the next split, move or close.
+It happens on its own whenever a pane is added (new-agent, herdr's split keys, anything), moved (move-pane or otherwise) or closed: a herdr plugin listens for `pane.created`, `pane.moved`, `pane.closed` and `pane.exited` (sent instead of `pane.closed` when a pane's shell exits on its own, as when you type `exit`). Resizing doesn't trigger it, so a size you set by hand stays until the next split, move or close.
 
-A closed pane's event only names its space, so on a close the space's active tab is evened out.
+A closed or exited pane's event only names its space, so on a close the space's active tab is evened out.
 
 A column that is itself split side by side counts as that many columns, so its panes get the same width as the other columns.
 
