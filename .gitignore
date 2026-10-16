@@ -2,3 +2,4 @@
 app/.build/
 app/build.noindex/
 *.bak-*
+.cloudflare/
