@@ -26,7 +26,9 @@ final class HerdrTerminalView: LocalProcessTerminalView {
                   options: [.urlReadingFileURLsOnly: true]) as? [URL], !urls.isEmpty
         else { return false }
         click(at: convert(sender.draggingLocation, from: nil))
-        send(txt: urls.map { shellEscape($0.path) }.joined(separator: " ") + " ")
+        let text = urls.map { shellEscape($0.path) }.joined(separator: " ") + " "
+        // Typed at once, the paths reach the old pane before herdr has acted on the click.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { self.send(txt: text) }
         return true
     }
 
