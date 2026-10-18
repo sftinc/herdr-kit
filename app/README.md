@@ -36,6 +36,7 @@ This builds the app and copies it to `/Applications/Herdr.app`, replacing any ex
 - When herdr exits cleanly, the app quits. If it exits with an error (for example, herdr isn't installed), the window stays open so you can read the message.
 - Cmd+Delete erases the line, as in Terminal.app. It sends Ctrl-U, so the program decides how much goes: zsh clears the whole line, while bash and Claude Code clear from the cursor back to the start.
 - Left Option + key sends herdr's prefix (Ctrl-B) and then the key, so left Option+h is prefix+h. The arrow keys stand in for h/j/k/l: left Option+left is prefix+h, and left Option+Shift+up is prefix+shift+k. Left Option+Shift+left and right are prefix+m and prefix+shift+m instead, which move a pane a column left or right with [pane-layout](../features/pane-layout/README.md). Right Option still works as Meta (e.g. Option+b/f to jump words).
+- Dropping files or folders from Finder onto a pane focuses that pane and types their paths, shell-escaped and separated by spaces, as Terminal.app does. Nothing is run. The focus works by sending herdr a click where you dropped, so a program in that pane that uses the mouse gets the click too (Claude Code moves its cursor there).
 - The terminal reports itself to macOS accessibility as a text area, so dictation tools such as VoiceBar paste into it.
 
 ## Full Disk Access

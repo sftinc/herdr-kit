@@ -16,6 +16,38 @@ final class HerdrTerminalView: LocalProcessTerminalView {
         }
         return super.performKeyEquivalent(with: event)
     }
+
+    // Files dropped from Finder: click the pane under the drop so herdr focuses it, then
+    // type the shell-escaped paths, as Terminal.app does.
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation { .copy }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        guard let urls = sender.draggingPasteboard.readObjects(forClasses: [NSURL.self],
+                  options: [.urlReadingFileURLsOnly: true]) as? [URL], !urls.isEmpty
+        else { return false }
+        click(at: convert(sender.draggingLocation, from: nil))
+        send(txt: urls.map { shellEscape($0.path) }.joined(separator: " ") + " ")
+        return true
+    }
+
+    func click(at point: NSPoint) {
+        let term = getTerminal()
+        guard term.mouseMode != .off else { return }
+        // The cell size SwiftTerm uses (its own is internal).
+        let cellWidth = font.advancement(forGlyph: font.glyph(withName: "W")).width
+        let cellHeight = ceil(font.ascender - font.descender + font.leading)
+        let col = min(max(Int(point.x / cellWidth), 0), term.cols - 1)
+        let row = min(max(Int((bounds.height - point.y) / cellHeight), 0), term.rows - 1)
+        for release in [false, true] {
+            let flags = term.encodeButton(button: 0, release: release, shift: false, meta: false, control: false)
+            term.sendEvent(buttonFlags: flags, x: col, y: row)
+        }
+    }
+
+    func shellEscape(_ path: String) -> String {
+        let special = Set(" \t!\"#$&'()*,;<=>?[\\]^`{|}~")
+        return String(path.flatMap { special.contains($0) ? ["\\", $0] : [$0] })
+    }
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate, LocalProcessTerminalViewDelegate {
@@ -32,6 +64,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, LocalProcessTerminalVi
         terminal.font = NSFont(name: "JetBrainsMonoNF-Regular", size: 14)
             ?? NSFont.monospacedSystemFont(ofSize: 14, weight: .regular)
         terminal.configureNativeColors()
+        terminal.registerForDraggedTypes([.fileURL])
 
         window = NSWindow(
             contentRect: terminal.frame,
